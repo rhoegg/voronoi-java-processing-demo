@@ -3,12 +3,21 @@ package com.ryanhoegg.voronoi.sandbox;
 import processing.core.PVector;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Path {
 
-    List<PVector> points = new LinkedList<>();
+    private List<PVector> points = new LinkedList<>();
+
+    public List<PVector> getPoints() {
+        return Collections.unmodifiableList(points);
+    }
+
+    public void add(PVector point) {
+        points.add(point);
+    }
 
     public static Path rectangle(PVector origin, float width, float height) {
         Path p = new Path();
