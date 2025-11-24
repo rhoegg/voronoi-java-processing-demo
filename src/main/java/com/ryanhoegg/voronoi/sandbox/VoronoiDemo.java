@@ -1,5 +1,6 @@
 package com.ryanhoegg.voronoi.sandbox;
 
+import com.ryanhoegg.voronoi.sandbox.visualizations.HalfPlaneDiagram;
 import com.ryanhoegg.voronoi.sandbox.visualizations.SingleCellHalfPlaneClip;
 import processing.core.PApplet;
 import processing.core.PVector;
@@ -42,8 +43,15 @@ public class VoronoiDemo extends PApplet {
     @Override
     public void keyPressed() {
         // note: ESC quits so don't use that one
-        visualization.keyPressed(key, keyCode);
         switch (key) {
+            case '1':
+                visualization = new SingleCellHalfPlaneClip(this, sites);
+                redraw();
+                break;
+            case '2':
+                visualization = new HalfPlaneDiagram(this, sites);
+                redraw();
+                break;
             case ' ':
                 visualization.step();
                 break;
@@ -53,6 +61,7 @@ public class VoronoiDemo extends PApplet {
             default:
                 System.out.println("Key pressed: " + (int) key);
         }
+        visualization.keyPressed(key, keyCode);
     }
 
 

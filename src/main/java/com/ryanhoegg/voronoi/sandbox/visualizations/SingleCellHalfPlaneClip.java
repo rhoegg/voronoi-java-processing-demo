@@ -10,9 +10,7 @@ import java.util.List;
 
 import static processing.core.PConstants.CLOSE;
 
-public class SingleCellHalfPlaneClip implements Visualization {
-    private final PApplet app;
-    private final List<PVector> sites;
+public class SingleCellHalfPlaneClip extends BaseVisualization {
     PVector focused;
     PVector neighborHighlight;
     List<PVector> others = new ArrayList<>();
@@ -23,8 +21,7 @@ public class SingleCellHalfPlaneClip implements Visualization {
     boolean shouldRenderBisector = false;
 
     public SingleCellHalfPlaneClip(PApplet app, List<PVector> sites) {
-        this.app = app;
-        this.sites = sites;
+        super(app, sites);
 
         focusCentralSite();
         this.focusedRegion = Path.rectangle(new PVector(0, 0), app.width, app.height);
@@ -50,6 +47,19 @@ public class SingleCellHalfPlaneClip implements Visualization {
         neighborHighlight = null;
         focusedRegion = Path.rectangle(new PVector(0, 0), app.width, app.height);
         app.redraw();
+    }
+
+    @Override
+    public void draw() {
+        drawSites();
+        drawStar(focused);
+        drawHighlightedNeighbor();
+        if (shouldRenderRegion) {
+            drawFocusedRegion();
+        }
+        if (shouldRenderBisector) {
+            drawBisector();
+        }
     }
 
     @Override
@@ -82,19 +92,6 @@ public class SingleCellHalfPlaneClip implements Visualization {
             if (! site.equals(focused)) {
                 this.others.add(site);
             }
-        }
-    }
-
-    @Override
-    public void draw() {
-        drawSites();
-        drawStar(focused);
-        drawHighlightedNeighbor();
-        if (shouldRenderRegion) {
-            drawFocusedRegion();
-        }
-        if (shouldRenderBisector) {
-            drawBisector();
         }
     }
 
@@ -161,14 +158,6 @@ public class SingleCellHalfPlaneClip implements Visualization {
     void drawStar(PVector location) {
         app.fill(255, 200, 0, 225);
         draw(Path.star(location, 15f));
-    }
-
-    void draw(Path p) {
-        app.beginShape();
-        for (PVector point: p.getPoints()) {
-            app.vertex(point.x, point.y);
-        }
-        app.endShape(CLOSE);
     }
 
     // geometry
