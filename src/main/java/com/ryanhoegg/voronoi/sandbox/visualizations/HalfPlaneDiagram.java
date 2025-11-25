@@ -1,18 +1,34 @@
 package com.ryanhoegg.voronoi.sandbox.visualizations;
 
+import com.ryanhoegg.voronoi.sandbox.Path;
 import com.ryanhoegg.voronoi.sandbox.Visualization;
+import com.ryanhoegg.voronoi.sandbox.geometry.HalfPlane;
 import processing.core.PApplet;
 import processing.core.PVector;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public class HalfPlaneDiagram extends BaseVisualization {
+
+    private int siteIndex = 0;
+    private List<Path> regions = new LinkedList<>();
+
     public HalfPlaneDiagram(PApplet app, List<PVector> sites) {
         super(app, sites);
     }
 
     @Override
     public void step() {
+        if (siteIndex < sites.size()) {
+            PVector site = sites.get(siteIndex);
+            List<PVector> others = sites.stream()
+                    .filter(s -> ! s.equals(site))
+                    .toList();
+            regions.add(getClippedRegion(site, others));
+            siteIndex++;
+            app.redraw();
+        }
     }
 
     @Override
@@ -21,7 +37,9 @@ public class HalfPlaneDiagram extends BaseVisualization {
 
     @Override
     public void draw() {
+        System.out.println("Drawing HalfPlaneDiagram");
         drawSites();
+        drawRegions();
     }
 
     void drawSites() {
@@ -31,5 +49,30 @@ public class HalfPlaneDiagram extends BaseVisualization {
         for (PVector site : sites) {
             app.ellipse(site.x, site.y, 6, 6);
         }
+    }
+
+    void drawRegions() {
+        for (Path region : regions) {
+            System.out.println("Drawing region");
+            drawRegion(region);
+        }
+    }
+
+    void drawRegion(Path r) {
+        if (r != null && !r.getPoints().isEmpty()) {
+            app.fill(0, 0, 240, 40);
+            app.stroke(0, 0, 180);
+            app.strokeWeight(3);
+
+            draw(r);
+        }
+    }
+
+    Path getClippedRegion(PVector site, List<PVector> others) {
+        Path region = Path.rectangle(new PVector(0, 0), app.width, app.height);
+        for (PVector other : others) {
+            region = HalfPlane.clipRegionAgainst(site, other, region);
+        }
+        return region;
     }
 }
