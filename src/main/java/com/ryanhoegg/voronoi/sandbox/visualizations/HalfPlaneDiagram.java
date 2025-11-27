@@ -37,23 +37,13 @@ public class HalfPlaneDiagram extends BaseVisualization {
 
     @Override
     public void draw() {
-        System.out.println("Drawing HalfPlaneDiagram");
         drawSites();
         drawRegions();
     }
 
-    void drawSites() {
-        app.background(app.color(240));
-        app.fill(app.color(15));
-        app.noStroke();
-        for (PVector site : sites) {
-            app.ellipse(site.x, site.y, 6, 6);
-        }
-    }
 
     void drawRegions() {
         for (Path region : regions) {
-            System.out.println("Drawing region");
             drawRegion(region);
         }
     }

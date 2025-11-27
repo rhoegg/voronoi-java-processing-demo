@@ -1,5 +1,6 @@
 package com.ryanhoegg.voronoi.sandbox;
 
+import com.ryanhoegg.voronoi.sandbox.visualizations.FortuneSweepLine;
 import com.ryanhoegg.voronoi.sandbox.visualizations.HalfPlaneDiagram;
 import com.ryanhoegg.voronoi.sandbox.visualizations.SingleCellHalfPlaneClip;
 import processing.core.PApplet;
@@ -15,6 +16,10 @@ public class VoronoiDemo extends PApplet {
     List<PVector> sites = new ArrayList<>();
     Visualization visualization;
 
+    boolean auto = false;
+    float stepInterval = 0.25f; // how often to call step in auto mode
+    float accumulatedTime = 0f;
+    long lastMillis;
 
     public static void main(String[] args) {
         PApplet.main(VoronoiDemo.class);
@@ -33,10 +38,23 @@ public class VoronoiDemo extends PApplet {
             sites.add(new PVector(r.nextFloat() * width, r.nextFloat() * height));
         }
         visualization = new SingleCellHalfPlaneClip(this, sites);
+        lastMillis = millis();
     }
 
     @Override
     public void draw() {
+        long now = millis();
+        float dt = (now - lastMillis) / 1000f;
+        lastMillis = now;
+
+        if (auto) { // advance steps automatically
+            visualization.update(dt);
+            accumulatedTime += dt;
+            while (accumulatedTime >= stepInterval) {
+                accumulatedTime -= stepInterval;
+                visualization.step();
+            }
+        }
         visualization.draw();
     }
 
@@ -46,17 +64,43 @@ public class VoronoiDemo extends PApplet {
         switch (key) {
             case '1':
                 visualization = new SingleCellHalfPlaneClip(this, sites);
+                auto = false;
+                noLoop();
                 redraw();
                 break;
             case '2':
                 visualization = new HalfPlaneDiagram(this, sites);
+                auto = false;
+                noLoop();
+                redraw();
+                break;
+            case '3':
+                visualization = new FortuneSweepLine(this, sites);
+                auto = false;
+                noLoop();
                 redraw();
                 break;
             case ' ':
+                auto = false;
+                noLoop();
                 visualization.step();
+                redraw();
+                break;
+            case 'a':
+                auto = !auto;
+                if (auto) {
+                    lastMillis = millis();
+                    loop();
+                    System.out.println("auto mode");
+                } else {
+                    noLoop();
+                }
                 break;
             case 'r':
                 visualization.reset();
+                auto = false;
+                noLoop();
+                redraw();
                 break;
             default:
                 System.out.println("Key pressed: " + (int) key);

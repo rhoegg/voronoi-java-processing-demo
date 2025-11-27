@@ -18,6 +18,12 @@ public abstract class BaseVisualization implements Visualization {
         this.sites = sites;
     }
 
+    @Override
+    public void update(float dt) {}
+
+    @Override
+    public void keyPressed(char key, int keyCode) {}
+
     protected void draw(Path p) {
         app.beginShape();
         for (PVector point: p.getPoints()) {
@@ -26,6 +32,13 @@ public abstract class BaseVisualization implements Visualization {
         app.endShape(CLOSE);
     }
 
-    @Override
-    public void keyPressed(char key, int keyCode) {}
+    protected void drawSites() {
+        app.background(app.color(240));
+        app.fill(app.color(15));
+        app.noStroke();
+        for (PVector site : sites) {
+            app.ellipse(site.x, site.y, 6, 6);
+        }
+    }
+
 }

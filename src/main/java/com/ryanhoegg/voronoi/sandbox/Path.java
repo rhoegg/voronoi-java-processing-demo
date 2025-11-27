@@ -46,5 +46,15 @@ public class Path {
         }
         return p;
     }
+
+    public static Path parabola(PVector focus, float directrix, int min, int max) {
+        Path p = new Path();
+        for (int x = min; x < max; x += 2) { // hardcoded step size of 2
+            float y = ((x - focus.x) * (x - focus.x) + focus.y * focus.y - directrix * directrix) /
+                    (2*(focus.y - directrix));
+            p.add(new PVector(x, y));
+        }
+        return p;
+    }
 }
 

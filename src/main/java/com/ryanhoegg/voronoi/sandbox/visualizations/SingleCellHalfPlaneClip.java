@@ -93,15 +93,6 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
         }
     }
 
-    void drawSites() {
-        app.background(app.color(240));
-        app.fill(app.color(15));
-        app.noStroke();
-        for (PVector site : sites) {
-            app.ellipse(site.x, site.y, 6, 6);
-        }
-    }
-
     void drawHighlightedNeighbor() {
         if (null != neighborHighlight) {
             app.stroke(app.color(255, 10, 0));
