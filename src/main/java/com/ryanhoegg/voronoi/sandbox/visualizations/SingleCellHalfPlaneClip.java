@@ -50,14 +50,34 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
     @Override
     public void draw() {
         drawSites();
-        drawStar(focused);
+        drawFocusSite();
         drawHighlightedNeighbor();
-        if (shouldRenderRegion) {
-            drawFocusedRegion();
-        }
         if (shouldRenderBisector) {
             drawBisector();
         }
+        if (shouldRenderRegion) {
+            drawFocusedRegion();
+        }
+    }
+
+    /**
+     * Draw the focus site with a bright color and subtle pulsing halo.
+     */
+    void drawFocusSite() {
+        // Subtle pulsing halo effect
+        float time = app.millis() / 1000.0f;
+        float pulsePhase = (float) Math.sin(time * 2.0f) * 0.5f + 0.5f; // 0..1
+        int haloAlpha = (int) (40 + pulsePhase * 60); // 40-100
+        float haloSize = 20 + pulsePhase * 8; // 20-28
+
+        // Draw halo
+        app.noStroke();
+        app.fill(StyleB.focusSiteHaloColor(app, haloAlpha));
+        app.ellipse(focused.x, focused.y, haloSize, haloSize);
+
+        // Draw main focus site dot
+        app.fill(StyleB.focusSiteColor(app));
+        app.ellipse(focused.x, focused.y, 14, 14);
     }
 
     @Override
@@ -111,30 +131,31 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
             PVector perpendicularDirection = new PVector(-SN.y, SN.x).normalize(); // unit length
             PVector midpoint = PVector.add(site, neighbor).mult(0.5f);
 
-            // shaded fill
+            // Discarded half-plane fill (warm translucent on the "neighbor" side)
             Path box = Path.rectangle(new PVector(0, 0), app.width, app.height);
             Path shaded = HalfPlane.clipRegionAgainst(neighbor, site, box);
             if (null != shaded && ! shaded.getPoints().isEmpty()) {
                 app.noStroke();
-                app.fill(StyleB.highlightedNeighborFill(app));
+                app.fill(StyleB.discardedHalfPlaneFill(app));
                 draw(shaded);
             }
 
-            // line
+            // Bisector line (strong, high-contrast cool blue)
             float bisectorLength = 1500; // longer than the screen diagonal
             PVector p1 = PVector.add(midpoint, PVector.mult(perpendicularDirection, bisectorLength));
             PVector p2 = PVector.add(midpoint, PVector.mult(perpendicularDirection, -1 * bisectorLength));
 
-            app.stroke(StyleB.bisectorEdgeColor(app));
-            app.strokeWeight(StyleB.NORMAL_LINE);
+            app.stroke(StyleB.clipLineStroke(app));
+            app.strokeWeight(3.0f);
             app.line(p1.x, p1.y, p2.x, p2.y);
         }
     }
 
     void drawFocusedRegion() {
-        app.fill(StyleB.highlightedRegionFill(app));
-        app.stroke(StyleB.regionStrokeColor(app));
-        app.strokeWeight(StyleB.EMPHASIS_LINE);
+        // Current clipping polygon (cool pale blue fill with darker outline)
+        app.fill(StyleB.clippingPolygonFill(app));
+        app.stroke(StyleB.clippingPolygonStroke(app));
+        app.strokeWeight(3.0f);
         drawRegion(focusedRegion);
     }
 

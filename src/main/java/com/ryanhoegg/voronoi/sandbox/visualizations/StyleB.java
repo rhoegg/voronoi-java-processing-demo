@@ -387,4 +387,76 @@ public class StyleB {
     public static int spokeColor(PApplet app, int alpha) {
         return app.color(100, 220, 255, alpha); // Bright cyan
     }
+
+    // ==================== HALF-PLANE VISUALIZATION ENHANCEMENTS ====================
+
+    /**
+     * Get focus site color (bright, stands out from regular sites).
+     */
+    public static int focusSiteColor(PApplet app) {
+        return app.color(255, 220, 60, 240); // Bright yellow-gold
+    }
+
+    /**
+     * Get focus site halo color (subtle pulse effect).
+     */
+    public static int focusSiteHaloColor(PApplet app, int alpha) {
+        return app.color(255, 230, 100, alpha); // Soft golden glow
+    }
+
+    /**
+     * Get bisector/clip line stroke color (strong, high-contrast).
+     */
+    public static int clipLineStroke(PApplet app) {
+        return app.color(80, 160, 240, 220); // Strong cool blue
+    }
+
+    /**
+     * Get discarded half-plane fill (warm translucent to show what's being clipped away).
+     */
+    public static int discardedHalfPlaneFill(PApplet app) {
+        return app.color(255, 120, 100, 60); // Soft warm pink/coral
+    }
+
+    /**
+     * Get current clipping polygon fill (cool pale blue).
+     */
+    public static int clippingPolygonFill(PApplet app) {
+        return app.color(160, 200, 240, 100); // Pale cool blue
+    }
+
+    /**
+     * Get current clipping polygon stroke (darker blue outline).
+     */
+    public static int clippingPolygonStroke(PApplet app) {
+        return app.color(70, 130, 200, 220); // Darker cool blue
+    }
+
+    /**
+     * Get Voronoi cell fill for completed cells (subtle cool tint).
+     */
+    public static int voronoiCellFill(PApplet app) {
+        return app.color(150, 190, 230, 70); // Very subtle cool blue
+    }
+
+    /**
+     * Get Voronoi cell stroke for completed cells (crisp edge).
+     */
+    public static int voronoiCellStroke(PApplet app) {
+        return app.color(80, 140, 200, 200); // Cool blue edge
+    }
+
+    /**
+     * Get active/highlighted Voronoi cell fill (stronger emphasis).
+     */
+    public static int voronoiCellFillActive(PApplet app) {
+        return app.color(140, 200, 255, 120); // Brighter cool blue
+    }
+
+    /**
+     * Get bounding box stroke (subtle, doesn't compete with cell edges).
+     */
+    public static int boundingBoxStroke(PApplet app) {
+        return app.color(120, 140, 170, 120); // Subtle cool grey-blue
+    }
 }
