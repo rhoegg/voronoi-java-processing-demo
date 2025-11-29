@@ -16,8 +16,13 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     private boolean done = false;
 
     final float SWEEP_SPEED = 120; // pixels per second
+    final float CIRCLE_LIFETIME = 1.6f; // seconds
+
     int sweepLinePosition = 0;
     private Stage stage = Stage.SEEN_SITES;
+    private List<ArcPath> beachLineSegments = new ArrayList<>();
+    private final List<CircleFlash> circleFlashes = new ArrayList<>();
+
 
     public FortuneSweepLine(PApplet app, List<PVector> sites) {
         super(app, sites);
@@ -34,6 +39,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     public void reset() {
         sweepLinePosition = 0;
         stage = Stage.SEEN_SITES;
+        done = false;
     }
 
     @Override
@@ -56,6 +62,37 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
                 break;
             }
         }
+
+        updateCircleFlashes(dt);
+
+        if (stage == Stage.BEACH_LINE) {
+            this.beachLineSegments = computeBeachLineSegments();
+        }
+    }
+
+    private void updateCircleFlashes(float dt) {
+        // create new
+        fortune.drainCircleEvents().forEach(e -> {
+            if (null == e.sites().a() || null == e.sites().b() || null == e.sites().c()) {
+                return;
+            }
+            System.out.println("adding circle flash");
+
+            final float x = (float) e.center().x();
+            final float y = (float) e.center().y();
+            final float r = (float) e.radius();
+            final PVector center = new PVector(x, y);
+            PVector a = new PVector((float) e.sites().a().x(), (float) e.sites().a().y());
+            PVector b = new PVector((float) e.sites().b().x(), (float) e.sites().b().y());
+            PVector c = new PVector((float) e.sites().c().x(), (float) e.sites().c().y());
+            circleFlashes.add(new CircleFlash(center, r, a, b, c));
+        });
+
+        // age circle flashes
+        circleFlashes.forEach( flash -> flash.age += dt);
+
+        // reap expired circle flashes
+        circleFlashes.removeIf(flash -> flash.age >= CIRCLE_LIFETIME);
     }
 
     @Override
@@ -66,10 +103,13 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
             drawSeenSites();
         }
         if (stage == Stage.PARABOLAS) {
+            drawSeenSites();
             drawParabolas();
         }
         if (stage == Stage.BEACH_LINE) {
+            drawBeachLineSites();
             drawBeachLine();
+            drawCircleFlashes();
         }
     }
 
@@ -104,6 +144,16 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     }
 
     private void drawSeenSites() {
+        drawColoredSites(this.sites);
+    }
+
+    private void drawBeachLineSites() {
+        drawColoredSites(this.beachLineSegments.stream().map(seg -> {
+            return new PVector( (float) seg.site.x(), (float) seg.site.y());
+        }).toList());
+    }
+
+    private void drawColoredSites(List<PVector> sites) {
         app.strokeWeight(2);
         sites.stream()
                 .filter(s -> s.y < sweepLinePosition)
@@ -128,13 +178,12 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     }
 
     private void drawBeachLine() {
-        List<ArcPath> segments = computeBeachLineSegments();
-        if (segments.isEmpty()) return;
+        if (this.beachLineSegments.isEmpty()) return;
 
         app.noFill();
         app.strokeWeight(1.8f);
 
-        for (ArcPath seg : segments) {
+        for (ArcPath seg : this.beachLineSegments) {
             int c = colorForSite(seg.site());
             app.stroke(c);
             app.beginShape();
@@ -143,6 +192,65 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
             }
             app.endShape();
         }
+    }
+
+    private void drawCircleFlashes() {
+        System.out.println("drawing circle flashes " + circleFlashes.size());
+        circleFlashes.forEach( flash -> {
+            float t = flash.age / CIRCLE_LIFETIME;
+            // clamp
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+
+            app.noFill();
+
+            // Phase 1: triangle + highlighted sites (0.0 - 0.4)
+            if (t < 0.4f) {
+                float phase = t / 0.4f; // 0..1
+                int alpha = (int)(phase * 200);
+
+                // triangle edges
+                app.stroke(app.color(100, 200, 255, alpha));
+                app.strokeWeight(1.5f);
+                app.beginShape();
+                app.vertex(flash.a.x, flash.a.y);
+                app.vertex(flash.b.x, flash.b.y);
+                app.vertex(flash.c.x, flash.c.y);
+                app.endShape(PApplet.CLOSE);
+
+                // sites A and C small, B big + bright
+                app.noStroke();
+                app.fill(app.color(180, 180, 255, alpha));
+                app.ellipse(flash.a.x, flash.a.y, 6, 6);
+                app.ellipse(flash.c.x, flash.c.y, 6, 6);
+
+                app.fill(app.color(255, 80, 80, alpha));
+                app.ellipse(flash.b.x, flash.b.y, 10, 10);
+            }
+
+            // Phase 2: circle strong (0.4 - 1.0)
+            if (t >= 0.2f && t < 1.0f) {
+                float phase = PApplet.map(t, 0.2f, 1.0f, 0f, 1f); // soften in & out
+                int alpha = (int)((1.0f - Math.abs(phase - 0.5f) * 2f) * 200);
+
+                app.noFill();
+                app.stroke(app.color(255, 255, 0, alpha));
+                app.strokeWeight(2f);
+                float d = flash.radius * 2;
+                app.ellipse(flash.center.x, flash.center.y, d, d);
+            }
+
+            // Phase 3: starburst at center (1.0 - 1.6)
+            if (t >= 1.0f) {
+                float phase = PApplet.map(t, 1.0f, 1.6f, 0f, 1f);
+                int alpha = (int)((1.0f - phase) * 220);
+                float starR = 6 + 8 * (1.0f - phase); // shrink over time
+
+                app.stroke(app.color(255, 255, 255, alpha));
+                app.fill(app.color(255, 255, 0, alpha));
+                drawStar(new PVector(flash.center.x, flash.center.y), starR);
+            }
+        });
     }
 
     private List<ArcPath> computeBeachLineSegments() {
@@ -239,9 +347,19 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     }
 
     class CircleFlash {
-        PVector center;
-        float radius;
-        float age; // in seconds
+        final PVector center;
+        final float radius;
+        final PVector a, b, c; // three sites that define the circle
+        float age;       // mutable
+
+        CircleFlash(PVector center, float radius, PVector a, PVector b, PVector c) {
+            this.center = center;
+            this.radius = radius;
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.age = 0;
+        }
     }
 
     private record ArcPath(Point site, Path path) {}

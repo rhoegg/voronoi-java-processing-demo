@@ -144,14 +144,4 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
         }
     }
 
-    void drawStar(PVector location) {
-        app.fill(255, 200, 0, 225);
-        draw(Path.star(location, 15f));
-    }
-
-
-
-
-
-
 }

@@ -1,9 +1,12 @@
 package com.ryanhoegg.voronoi.core;
 
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
+import com.ryanhoegg.voronoi.core.geometry.Geometry2D;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 
 import java.util.*;
+
+import static com.ryanhoegg.voronoi.core.geometry.Geometry2D.parabolaY;
 
 public final class FortuneContext {
     private final List<Point> sites;
@@ -19,7 +22,9 @@ public final class FortuneContext {
 
     private final PriorityQueue<Event> eventQueue;
 
+    // for observability
     private Event lastEvent;
+    private final List<CircleEvent> recentCircleEvents = new ArrayList<>();
 
     public FortuneContext(List<Point> sites, Bounds bounds) {
         this.sites = List.copyOf(sites);
@@ -50,7 +55,6 @@ public final class FortuneContext {
         Event e = eventQueue.poll();
         lastEvent = e;
         sweepLineY = e.y();
-
         switch(e) {
             case SiteEvent siteEvent -> handleSiteEvent(siteEvent);
             case CircleEvent circleEvent -> handleCircleEvent(circleEvent);
@@ -76,7 +80,15 @@ public final class FortuneContext {
         return (e != null) ? e.y() : null;
     }
 
-    private void handleSiteEvent(SiteEvent siteEvent) {
+    public List<CircleEvent> drainCircleEvents() {
+        List<CircleEvent> events = Collections.unmodifiableList(List.copyOf(recentCircleEvents));
+        System.out.println("drained circle events: " + events.size());
+        // I'm glad this isn't multithreaded
+        recentCircleEvents.clear();
+        return events;
+    }
+
+    private void handleSiteEvent(final SiteEvent siteEvent) {
         Point site = siteEvent.site();
 
         // first site
@@ -118,10 +130,109 @@ public final class FortuneContext {
         arc.next = null;
         arc.prev = null;
 
-        // TODO: circle events?
+        // old arc circle event is now invalid
+        if (null != arc.circleEvent) {
+            arc.circleEvent.valid = false;
+            arc.circleEvent = null;
+        }
+
+        // check all three new triples for circle events
+        maybeCreateCircleEvent(leftArc);
+        maybeCreateCircleEvent(newArc);
+        maybeCreateCircleEvent(rightArc);
     }
 
-    private void handleCircleEvent(CircleEvent circleEvent) {}
+    private void handleCircleEvent(final CircleEvent circleEvent) {
+        if (!circleEvent.valid) {
+            return;
+        }
+        BeachArc doomed = circleEvent.disappearingArc;
+        if (null == doomed || doomed.circleEvent != circleEvent) {
+            return;
+        }
+        // we have a voronoi vertex!
+        vertices.add(new Vertex(circleEvent.center));
+        BeachArc leftArc = doomed.prev;
+        BeachArc rightArc = doomed.next;
+        if (null != leftArc) {
+            leftArc.next = rightArc;
+        }
+        if (null != rightArc) {
+            rightArc.prev = leftArc;
+        }
+        if (null == leftArc) {
+            beachLine = rightArc;
+        }
+        doomed.prev = null;
+        doomed.next = null;
+        doomed.circleEvent = null;
+        if (null != leftArc && null != leftArc.circleEvent) {
+            leftArc.circleEvent.valid = false;
+            leftArc.circleEvent = null;
+        }
+        if (null != rightArc && null != rightArc.circleEvent) {
+            rightArc.circleEvent.valid = false;
+            rightArc.circleEvent = null;
+        }
+        maybeCreateCircleEvent(leftArc);
+        maybeCreateCircleEvent(rightArc);
+        System.out.println("recording circle event");
+        recordCircleEvent(circleEvent);
+    }
+
+    private void maybeCreateCircleEvent(BeachArc middle) {
+        if (null == middle) {
+            return;
+        }
+        if (null == middle.prev ||  null == middle.next) {
+            return;
+        }
+        BeachArc a = middle.prev;
+        BeachArc b = middle;
+        BeachArc c = middle.next;
+
+        Point pa = a.site;
+        Point pb = b.site;
+        Point pc = c.site;
+
+        // For a circle event, three consecutive beach arcs A-B-C (left to right)
+        // must form a configuration where the circumcenter lies "ahead" of the
+        // sweep line (in the direction of increasing y in this coordinate system).
+        // In this setup, that condition corresponds to orientation(A,B,C) < 0.
+        // If orientation >= 0, the circumcenter would be behind the sweep or
+        // the points are collinear, so no circle event.
+        if (Geometry2D.orientation(pa, pb, pc) >= 0) {
+            // if clockwise, no circle event!
+            return;
+        }
+
+        Point center = Geometry2D.circumcenter(pa, pb, pc);
+        if (null == center) {
+            // colinear, no circle event
+            return;
+        }
+
+        double dx = center.x() - pb.x();
+        double dy = center.y() - pb.y();
+        double radius = Math.sqrt(dx * dx + dy * dy);
+        double eventY = center.y() + radius;
+        if (eventY <= sweepLineY) {
+            // in the past?! floating point issue or something
+            return;
+        }
+
+        if (null != middle.circleEvent) {
+            middle.circleEvent.valid = false;
+        }
+
+        CircleEvent event = new CircleEvent(center, eventY, radius, middle);
+        middle.circleEvent = event;
+        eventQueue.offer(event);
+    }
+
+    private void recordCircleEvent(CircleEvent circleEvent) {
+        recentCircleEvents.add(circleEvent);
+    }
 
     private BeachArc findArcAbove(double x) {
         BeachArc best = null;
@@ -136,22 +247,17 @@ public final class FortuneContext {
         return best;
     }
 
-    private double parabolaY(Point focus, double x, double directrixY) {
-        double fx = focus.x();
-        double fy = focus.y();
-        double d = directrixY;
-
-        return ((x - fx) * (x - fx) + fy * fy - d * d) / (2.0 * (fy - d));
-    }
 
     public static final class BeachArc {
 
         public final Point site;         // focus of this parabola / arc
-        BeachArc prev;
+        public BeachArc prev;
         public BeachArc next;
 
         Edge leftEdge;            // Voronoi edge between prev.site and this.site
         Edge rightEdge;           // Voronoi edge between this.site and next.site
+
+        CircleEvent circleEvent;
 
         BeachArc(Point site) {
             this.site = site;
@@ -181,18 +287,36 @@ public final class FortuneContext {
     public static final class CircleEvent implements Event {
         final Point center;
         final double y;
-        final BeachArc disappearingArc;
+        final double radius;
         boolean valid = true;
+        public BeachArc disappearingArc;
+        private final Sites sites;
 
-        CircleEvent(Point center, double y, BeachArc arc) {
+        CircleEvent(Point center, double y, double radius, BeachArc arc) {
             this.center = center;
             this.y = y;
+            this.radius = radius;
             this.disappearingArc = arc;
+            this.sites = new Sites(arc.prev.site, arc.site, arc.next.site);
         }
 
         @Override
         public double y() {
             return y;
         }
+
+        public Point center() {
+            return this.center;
+        }
+
+        public double radius() {
+            return this.radius;
+        }
+
+        public Sites sites() {
+            return this.sites;
+        }
+
+        public static record Sites (Point a, Point b, Point c) {}
     }
 }

@@ -32,6 +32,14 @@ public abstract class BaseVisualization implements Visualization {
         app.endShape(CLOSE);
     }
 
+    void drawStar(PVector location) {
+        drawStar(location, 15f);
+    }
+    void drawStar(PVector location, float radius) {
+        app.fill(255, 200, 0, 225);
+        draw(Path.star(location, radius));
+    }
+
     protected void drawSites() {
         app.background(app.color(240));
         app.fill(app.color(15));
