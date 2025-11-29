@@ -36,15 +36,18 @@ public abstract class BaseVisualization implements Visualization {
         drawStar(location, 15f);
     }
     void drawStar(PVector location, float radius) {
-        app.fill(255, 200, 0, 225);
+        app.fill(StyleB.starburstFillColor(app, 225));
+        app.stroke(StyleB.starburstStrokeColor(app, 225));
+        app.strokeWeight(StyleB.THIN_LINE);
         draw(Path.star(location, radius));
     }
 
     protected void drawSites() {
-        app.background(app.color(240));
-        app.fill(app.color(15));
+        StyleB.drawGradientBackground(app);
         app.noStroke();
         for (PVector site : sites) {
+            int siteColor = StyleB.siteColor(app, site);
+            app.fill(siteColor);
             app.ellipse(site.x, site.y, 6, 6);
         }
     }

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Random;
 
 public class VoronoiDemo extends PApplet {
-    final int SITE_COUNT = 20;
+    final int SITE_COUNT = 50;
 
     List<PVector> sites = new ArrayList<>();
     Visualization visualization;

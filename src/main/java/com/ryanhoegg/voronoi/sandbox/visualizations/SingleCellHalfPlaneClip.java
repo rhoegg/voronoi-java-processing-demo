@@ -95,9 +95,9 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
 
     void drawHighlightedNeighbor() {
         if (null != neighborHighlight) {
-            app.stroke(app.color(255, 10, 0));
-            app.strokeWeight(2);
-            app.fill(app.color(255, 10, 0, 40));
+            app.stroke(StyleB.highlightedNeighborColor(app));
+            app.strokeWeight(StyleB.NORMAL_LINE);
+            app.fill(StyleB.highlightedNeighborFill(app));
             app.ellipse(neighborHighlight.x, neighborHighlight.y, 12, 12);
         }
     }
@@ -116,7 +116,7 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
             Path shaded = HalfPlane.clipRegionAgainst(neighbor, site, box);
             if (null != shaded && ! shaded.getPoints().isEmpty()) {
                 app.noStroke();
-                app.fill(app.color(255, 10, 0, 40));
+                app.fill(StyleB.highlightedNeighborFill(app));
                 draw(shaded);
             }
 
@@ -125,16 +125,16 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
             PVector p1 = PVector.add(midpoint, PVector.mult(perpendicularDirection, bisectorLength));
             PVector p2 = PVector.add(midpoint, PVector.mult(perpendicularDirection, -1 * bisectorLength));
 
-            app.stroke(app.color(255, 0, 0, 180));
-            app.strokeWeight(2);
+            app.stroke(StyleB.bisectorEdgeColor(app));
+            app.strokeWeight(StyleB.NORMAL_LINE);
             app.line(p1.x, p1.y, p2.x, p2.y);
         }
     }
 
     void drawFocusedRegion() {
-        app.fill(0, 0, 240, 40);
-        app.stroke(0, 0, 180);
-        app.strokeWeight(3);
+        app.fill(StyleB.highlightedRegionFill(app));
+        app.stroke(StyleB.regionStrokeColor(app));
+        app.strokeWeight(StyleB.EMPHASIS_LINE);
         drawRegion(focusedRegion);
     }
 

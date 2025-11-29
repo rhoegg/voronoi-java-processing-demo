@@ -82,7 +82,6 @@ public final class FortuneContext {
 
     public List<CircleEvent> drainCircleEvents() {
         List<CircleEvent> events = Collections.unmodifiableList(List.copyOf(recentCircleEvents));
-        System.out.println("drained circle events: " + events.size());
         // I'm glad this isn't multithreaded
         recentCircleEvents.clear();
         return events;
@@ -176,7 +175,6 @@ public final class FortuneContext {
         }
         maybeCreateCircleEvent(leftArc);
         maybeCreateCircleEvent(rightArc);
-        System.out.println("recording circle event");
         recordCircleEvent(circleEvent);
     }
 

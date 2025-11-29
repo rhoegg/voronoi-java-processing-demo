@@ -50,9 +50,9 @@ public class HalfPlaneDiagram extends BaseVisualization {
 
     void drawRegion(Path r) {
         if (r != null && !r.getPoints().isEmpty()) {
-            app.fill(0, 0, 240, 40);
-            app.stroke(0, 0, 180);
-            app.strokeWeight(3);
+            app.fill(StyleB.highlightedRegionFill(app));
+            app.stroke(StyleB.regionStrokeColor(app));
+            app.strokeWeight(StyleB.EMPHASIS_LINE);
 
             draw(r);
         }

@@ -5,15 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8ae97386-3a63-41d5-9bbd-d71cba19bde0" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/core/geometry/Geometry2D.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/ryanhoegg/voronoi/core/geometry/Geometry2DTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/core/FortuneContext.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/core/FortuneContext.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/BaseVisualization.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/BaseVisualization.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/FortuneSweepLine.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/FortuneSweepLine.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/HalfPlaneDiagram.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/HalfPlaneDiagram.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/SingleCellHalfPlaneClip.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ryanhoegg/voronoi/sandbox/visualizations/SingleCellHalfPlaneClip.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -107,7 +103,7 @@
       <option name="presentableId" value="Default" />
       <updated>1763832361382</updated>
       <workItem from="1763832362453" duration="475000" />
-      <workItem from="1764383561440" duration="10108000" />
+      <workItem from="1764383561440" duration="14798000" />
     </task>
     <servers />
   </component>
