@@ -18,8 +18,8 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
     boolean shouldRenderRegion = false;
     boolean shouldRenderBisector = false;
 
-    public SingleCellHalfPlaneClip(PApplet app, List<PVector> sites) {
-        super(app, sites);
+    public SingleCellHalfPlaneClip(PApplet app, List<PVector> sites, Theme theme) {
+        super(app, sites, theme);
 
         focusCentralSite();
         this.focusedRegion = Path.rectangle(new PVector(0, 0), app.width, app.height);
@@ -72,11 +72,11 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
 
         // Draw halo
         app.noStroke();
-        app.fill(StyleB.focusSiteHaloColor(app, haloAlpha));
+        app.fill(ThemeEngine.focusSiteHaloColor(app, theme, haloAlpha));
         app.ellipse(focused.x, focused.y, haloSize, haloSize);
 
         // Draw main focus site dot
-        app.fill(StyleB.focusSiteColor(app));
+        app.fill(ThemeEngine.focusSiteColor(app, theme));
         app.ellipse(focused.x, focused.y, 14, 14);
     }
 
@@ -115,9 +115,9 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
 
     void drawHighlightedNeighbor() {
         if (null != neighborHighlight) {
-            app.stroke(StyleB.highlightedNeighborColor(app));
-            app.strokeWeight(StyleB.NORMAL_LINE);
-            app.fill(StyleB.highlightedNeighborFill(app));
+            app.stroke(ThemeEngine.highlightedNeighborColor(app, theme));
+            app.strokeWeight(ThemeEngine.NORMAL_LINE);
+            app.fill(ThemeEngine.highlightedNeighborFill(app, theme));
             app.ellipse(neighborHighlight.x, neighborHighlight.y, 12, 12);
         }
     }
@@ -136,25 +136,25 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
             Path shaded = HalfPlane.clipRegionAgainst(neighbor, site, box);
             if (null != shaded && ! shaded.getPoints().isEmpty()) {
                 app.noStroke();
-                app.fill(StyleB.discardedHalfPlaneFill(app));
+                app.fill(ThemeEngine.discardedHalfPlaneFill(app, theme));
                 draw(shaded);
             }
 
-            // Bisector line (strong, high-contrast cool blue)
+            // Bisector line (strong, high-contrast)
             float bisectorLength = 1500; // longer than the screen diagonal
             PVector p1 = PVector.add(midpoint, PVector.mult(perpendicularDirection, bisectorLength));
             PVector p2 = PVector.add(midpoint, PVector.mult(perpendicularDirection, -1 * bisectorLength));
 
-            app.stroke(StyleB.clipLineStroke(app));
+            app.stroke(ThemeEngine.clipLineStroke(app, theme));
             app.strokeWeight(3.0f);
             app.line(p1.x, p1.y, p2.x, p2.y);
         }
     }
 
     void drawFocusedRegion() {
-        // Current clipping polygon (cool pale blue fill with darker outline)
-        app.fill(StyleB.clippingPolygonFill(app));
-        app.stroke(StyleB.clippingPolygonStroke(app));
+        // Current clipping polygon
+        app.fill(ThemeEngine.clippingPolygonFill(app, theme));
+        app.stroke(ThemeEngine.clippingPolygonStroke(app, theme));
         app.strokeWeight(3.0f);
         drawRegion(focusedRegion);
     }

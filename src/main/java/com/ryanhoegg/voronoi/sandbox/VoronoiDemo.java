@@ -8,6 +8,7 @@ import com.ryanhoegg.voronoi.sandbox.visualizations.CircleEventZoom;
 import com.ryanhoegg.voronoi.sandbox.visualizations.FortuneSweepLine;
 import com.ryanhoegg.voronoi.sandbox.visualizations.HalfPlaneDiagram;
 import com.ryanhoegg.voronoi.sandbox.visualizations.SingleCellHalfPlaneClip;
+import com.ryanhoegg.voronoi.sandbox.visualizations.Theme;
 import processing.core.PApplet;
 import processing.core.PVector;
 
@@ -26,6 +27,9 @@ public class VoronoiDemo extends PApplet {
     List<PVector> sites = new ArrayList<>();
     List<PVector> circleDemoSites = new ArrayList<>();
     Visualization visualization;
+
+    // Theme selection - Change this to switch themes!
+    Theme currentTheme = Theme.CHRISTMAS;
 
     boolean auto = false;
     float stepInterval = 0.25f; // how often to call step in auto mode
@@ -56,7 +60,7 @@ public class VoronoiDemo extends PApplet {
                 sites.add(candidate);
             }
         }
-        visualization = new SingleCellHalfPlaneClip(this, sites);
+        visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
         lastMillis = millis();
     }
 
@@ -82,27 +86,43 @@ public class VoronoiDemo extends PApplet {
         // note: ESC quits so don't use that one
         switch (key) {
             case '1':
-                visualization = new SingleCellHalfPlaneClip(this, sites);
+                visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
                 auto = false;
                 noLoop();
                 redraw();
                 break;
             case '2':
-                visualization = new HalfPlaneDiagram(this, sites);
+                visualization = new HalfPlaneDiagram(this, sites, currentTheme);
                 auto = false;
                 noLoop();
                 redraw();
                 break;
             case '3':
-                visualization = new CircleEventZoom(this, circleDemoSites);
+                visualization = new CircleEventZoom(this, circleDemoSites, currentTheme);
                 auto = false;
                 lastMillis = millis();
                 loop();
                 break;
             case '4':
-                visualization = new FortuneSweepLine(this, sites);
+                visualization = new FortuneSweepLine(this, sites, currentTheme);
                 auto = false;
                 noLoop();
+                redraw();
+                break;
+            case 't':
+                // Toggle theme
+                currentTheme = (currentTheme == Theme.CHRISTMAS) ? Theme.STYLE_B_CLASSIC : Theme.CHRISTMAS;
+                System.out.println("Switched to theme: " + currentTheme);
+                // Recreate current visualization with new theme
+                if (visualization instanceof SingleCellHalfPlaneClip) {
+                    visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
+                } else if (visualization instanceof HalfPlaneDiagram) {
+                    visualization = new HalfPlaneDiagram(this, sites, currentTheme);
+                } else if (visualization instanceof CircleEventZoom) {
+                    visualization = new CircleEventZoom(this, circleDemoSites, currentTheme);
+                } else if (visualization instanceof FortuneSweepLine) {
+                    visualization = new FortuneSweepLine(this, sites, currentTheme);
+                }
                 redraw();
                 break;
             case ' ':

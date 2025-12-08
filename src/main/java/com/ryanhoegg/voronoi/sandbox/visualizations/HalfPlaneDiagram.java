@@ -14,8 +14,8 @@ public class HalfPlaneDiagram extends BaseVisualization {
     private int siteIndex = 0;
     private List<Path> regions = new LinkedList<>();
 
-    public HalfPlaneDiagram(PApplet app, List<PVector> sites) {
-        super(app, sites);
+    public HalfPlaneDiagram(PApplet app, List<PVector> sites, Theme theme) {
+        super(app, sites, theme);
     }
 
     @Override
@@ -54,12 +54,12 @@ public class HalfPlaneDiagram extends BaseVisualization {
         if (r != null && !r.getPoints().isEmpty()) {
             // Use different styling for active vs completed cells
             if (isActive) {
-                app.fill(StyleB.voronoiCellFillActive(app));
-                app.stroke(StyleB.voronoiCellStroke(app));
+                app.fill(ThemeEngine.voronoiCellFillActive(app, theme));
+                app.stroke(ThemeEngine.voronoiCellStroke(app, theme));
                 app.strokeWeight(3.0f);
             } else {
-                app.fill(StyleB.voronoiCellFill(app));
-                app.stroke(StyleB.voronoiCellStroke(app));
+                app.fill(ThemeEngine.voronoiCellFill(app, theme));
+                app.stroke(ThemeEngine.voronoiCellStroke(app, theme));
                 app.strokeWeight(2.5f);
             }
 
@@ -76,11 +76,11 @@ public class HalfPlaneDiagram extends BaseVisualization {
 
             // Draw subtle glow around active site
             app.noStroke();
-            app.fill(StyleB.focusSiteHaloColor(app, 60));
+            app.fill(ThemeEngine.focusSiteHaloColor(app, theme, 60));
             app.ellipse(activeSite.x, activeSite.y, 18, 18);
 
             // Draw active site dot (slightly larger and brighter)
-            int siteColor = StyleB.siteColor(app, activeSite);
+            int siteColor = ThemeEngine.siteFill(app, theme, activeSite);
             int r = (siteColor >> 16) & 0xFF;
             int g = (siteColor >> 8) & 0xFF;
             int b = siteColor & 0xFF;

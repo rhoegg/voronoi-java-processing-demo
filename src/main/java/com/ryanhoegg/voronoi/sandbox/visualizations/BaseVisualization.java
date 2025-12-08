@@ -12,10 +12,12 @@ import static processing.core.PConstants.CLOSE;
 public abstract class BaseVisualization implements Visualization {
     protected final PApplet app;
     protected final List<PVector> sites;
+    protected final Theme theme;
 
-    BaseVisualization(PApplet app, List<PVector> sites) {
+    BaseVisualization(PApplet app, List<PVector> sites, Theme theme) {
         this.app = app;
         this.sites = sites;
+        this.theme = theme;
     }
 
     @Override
@@ -36,18 +38,32 @@ public abstract class BaseVisualization implements Visualization {
         drawStar(location, 15f);
     }
     void drawStar(PVector location, float radius) {
-        app.fill(StyleB.starburstFillColor(app, 225));
-        app.stroke(StyleB.starburstStrokeColor(app, 225));
-        app.strokeWeight(StyleB.THIN_LINE);
+        app.fill(ThemeEngine.starburstFillColor(app, theme, 225));
+        app.stroke(ThemeEngine.starburstStrokeColor(app, 225));
+        app.strokeWeight(ThemeEngine.THIN_LINE);
         draw(Path.star(location, radius));
     }
 
     protected void drawSites() {
-        StyleB.drawGradientBackground(app);
+        ThemeEngine.drawGradientBackground(app, theme);
+
+        // Draw site shadows first for better contrast
+        int shadowColor = ThemeEngine.siteShadow(app, theme);
         app.noStroke();
         for (PVector site : sites) {
-            int siteColor = StyleB.siteColor(app, site);
-            app.fill(siteColor);
+            app.fill(shadowColor);
+            // Draw shadow slightly larger and offset
+            app.ellipse(site.x + 1, site.y + 1, 9, 9);
+        }
+
+        // Draw sites on top with optional stroke
+        for (PVector site : sites) {
+            int siteFill = ThemeEngine.siteFill(app, theme, site);
+            int siteStroke = ThemeEngine.siteStroke(app, theme, site.x, site.y);
+
+            app.stroke(siteStroke);
+            app.strokeWeight(0.8f);
+            app.fill(siteFill);
             app.ellipse(site.x, site.y, 6, 6);
         }
     }

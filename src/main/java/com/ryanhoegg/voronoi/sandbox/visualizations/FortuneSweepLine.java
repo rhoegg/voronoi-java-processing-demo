@@ -24,8 +24,8 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     private final List<CircleFlash> circleFlashes = new ArrayList<>();
 
 
-    public FortuneSweepLine(PApplet app, List<PVector> sites) {
-        super(app, sites);
+    public FortuneSweepLine(PApplet app, List<PVector> sites, Theme theme) {
+        super(app, sites, theme);
 
         rebuildFortuneContext();
     }
@@ -138,46 +138,60 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
         // Layered sweep line for maximum visibility
 
         // Layer 1: Glow/halo (drawn first as background)
-        app.stroke(StyleB.sweepLineGlowColor(app));
-        app.strokeWeight(StyleB.SWEEP_LINE_WEIGHT_GLOW);
+        app.stroke(ThemeEngine.sweepLineGlowColor(app, theme));
+        app.strokeWeight(ThemeEngine.sweepLineGlowWeight(theme));
         app.line(0, sweepLinePosition, app.width, sweepLinePosition);
 
-        // Layer 2: Optional shadow (1px offset for depth)
-        app.stroke(StyleB.sweepLineShadowColor(app));
-        app.strokeWeight(StyleB.SWEEP_LINE_WEIGHT_SHADOW);
+        // Layer 2: Optional shadow (1px offset for depth, classic theme only)
+        app.stroke(ThemeEngine.sweepLineShadowColor(app, theme));
+        app.strokeWeight(ThemeEngine.sweepLineShadowWeight());
         app.line(0, sweepLinePosition + 1, app.width, sweepLinePosition + 1);
 
-        // Layer 3: Main sweep line (deep violet, on top)
-        app.stroke(StyleB.sweepLineMainColor(app));
-        app.strokeWeight(StyleB.SWEEP_LINE_WEIGHT_MAIN);
+        // Layer 3: Main/core sweep line (on top)
+        app.stroke(ThemeEngine.sweepLineCoreColor(app, theme));
+        app.strokeWeight(ThemeEngine.sweepLineCoreWeight(theme));
         app.line(0, sweepLinePosition, app.width, sweepLinePosition);
 
-        // Unseen area overlay (cool dark blue-grey)
+        // Unseen area overlay
         Path unseenAreaPath = new Path();
         unseenAreaPath.add(new PVector(0, sweepLinePosition));
         unseenAreaPath.add(new PVector(app.width, sweepLinePosition));
         unseenAreaPath.add(new PVector(app.width, app.height));
         unseenAreaPath.add(new PVector(0, app.height));
         app.noStroke();
-        app.fill(StyleB.unseenAreaColor(app));
+        app.fill(ThemeEngine.unseenAreaColor(app, theme));
         draw(unseenAreaPath);
     }
 
     private void drawSeenSites() {
         // PART A: Distinguish sites above (present) vs below (past) the sweep line
+        // Draw shadows first
+        int shadowColor = ThemeEngine.siteShadow(app, theme);
         app.noStroke();
         for (PVector site : sites) {
-            int c = StyleB.siteColor(app, site);
+            if (site.y < sweepLinePosition) {
+                app.fill(shadowColor);
+                app.ellipse(site.x + 1, site.y + 1, 14, 14);
+            }
+        }
+
+        // Draw sites on top
+        for (PVector site : sites) {
+            int c = ThemeEngine.siteFill(app, theme, site);
             int r = (c >> 16) & 0xFF;
             int g = (c >> 8) & 0xFF;
             int b = c & 0xFF;
 
             if (site.y < sweepLinePosition) {
                 // Sites above sweep line - normal size, full color (present/active)
+                int strokeColor = ThemeEngine.siteStroke(app, theme, site.x, site.y);
+                app.stroke(strokeColor);
+                app.strokeWeight(0.8f);
                 app.fill(app.color(r, g, b, 220));
                 app.ellipse(site.x, site.y, 12, 12);
             } else {
                 // Sites below sweep line - smaller, faded (past/processed)
+                app.noStroke();
                 app.fill(app.color(r, g, b, 80));
                 app.ellipse(site.x, site.y, 6, 6);
             }
@@ -191,13 +205,25 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
     }
 
     private void drawColoredSites(List<PVector> sites) {
-        app.strokeWeight(StyleB.NORMAL_LINE);
+        // Draw shadows first
+        int shadowColor = ThemeEngine.siteShadow(app, theme);
+        app.noStroke();
         sites.stream()
                 .filter(s -> s.y < sweepLinePosition)
                 .forEach(s -> {
-                    int c = StyleB.siteColor(app, s);
+                    app.fill(shadowColor);
+                    app.ellipse(s.x + 1, s.y + 1, 14, 14);
+                });
 
-                    app.stroke(c);
+        // Draw sites on top
+        app.strokeWeight(ThemeEngine.NORMAL_LINE);
+        sites.stream()
+                .filter(s -> s.y < sweepLinePosition)
+                .forEach(s -> {
+                    int c = ThemeEngine.siteFill(app, theme, s);
+                    int strokeColor = ThemeEngine.siteStroke(app, theme, s.x, s.y);
+
+                    app.stroke(strokeColor);
                     // Extract RGB and apply custom alpha
                     int r = (c >> 16) & 0xFF;
                     int g = (c >> 8) & 0xFF;
@@ -224,7 +250,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
             if (s.equals(exampleSite)) continue; // Skip example, draw it separately
 
             // Background parabolas: thinner, very low alpha
-            app.stroke(StyleB.parabolaColorFaint(app, s));
+            app.stroke(ThemeEngine.parabolaColorFaint(app, theme, s));
             app.strokeWeight(0.8f);
             draw(Path.parabola(s, sweepLinePosition, 0, app.width));
         }
@@ -232,14 +258,14 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
         // Draw example parabola highlighted
         if (exampleSite != null) {
             // Example parabola: thicker, higher alpha
-            app.stroke(StyleB.parabolaColorHighlight(app, exampleSite));
+            app.stroke(ThemeEngine.parabolaColorHighlight(app, theme, exampleSite));
             app.strokeWeight(2.0f);
             draw(Path.parabola(exampleSite, sweepLinePosition, 0, app.width));
 
             // Draw vertical guide line from site to parabola vertex
             float vertexY = (float) parabolaY(new Point(exampleSite.x, exampleSite.y), exampleSite.x, sweepLinePosition);
             if (!Float.isNaN(vertexY)) {
-                app.stroke(StyleB.guideLineColor(app));
+                app.stroke(ThemeEngine.guideLineColor(app, theme));
                 app.strokeWeight(1.0f);
 
                 // Dashed line effect
@@ -251,7 +277,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
                 }
 
                 // Small label near vertex
-                app.fill(StyleB.labelColor(app));
+                app.fill(ThemeEngine.labelColor(app, theme));
                 app.textSize(10);
                 app.textAlign(PApplet.CENTER);
                 app.text("equal distance", exampleSite.x, vertexY + 15);
@@ -282,10 +308,10 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
         if (this.beachLineSegments.isEmpty()) return;
 
         app.noFill();
-        app.strokeWeight(StyleB.BEACH_LINE_STROKE_WEIGHT);
+        app.strokeWeight(ThemeEngine.BEACH_LINE_STROKE_WEIGHT);
 
         for (ArcPath seg : this.beachLineSegments) {
-            int c = StyleB.beachLineColor(app, seg.site());
+            int c = ThemeEngine.beachLineColor(app, theme, seg.site());
             app.stroke(c);
             app.beginShape();
             for (PVector p : seg.path.getPoints()) {
@@ -304,20 +330,20 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
             if (t > 1) t = 1;
 
             // Optional: Draw subtle full-screen overlay for emphasis
-            if (t < StyleB.CIRCLE_EVENT_STAGE2_END) {
+            if (t < ThemeEngine.CIRCLE_EVENT_STAGE2_END) {
                 app.noStroke();
-                app.fill(StyleB.circleEventOverlayColor(app));
+                app.fill(ThemeEngine.circleEventOverlayColor(app, theme));
                 app.rect(0, 0, app.width, app.height);
             }
 
             // === PHASE 1: "Three Neighbors" (0.0 - 0.4) ===
-            if (t < StyleB.CIRCLE_EVENT_STAGE1_END) {
-                float phase = t / StyleB.CIRCLE_EVENT_STAGE1_END; // 0..1
+            if (t < ThemeEngine.CIRCLE_EVENT_STAGE1_END) {
+                float phase = t / ThemeEngine.CIRCLE_EVENT_STAGE1_END; // 0..1
                 int alpha = (int)(phase * 220);
 
-                // Triangle A-B-C with thick cyan stroke
+                // Triangle A-B-C with thick stroke
                 app.noFill();
-                app.stroke(StyleB.triangleEdgeColor(app, alpha));
+                app.stroke(ThemeEngine.triangleEdgeColor(app, theme, alpha));
                 app.strokeWeight(3.0f);
                 app.beginShape();
                 app.vertex(flash.a.x, flash.a.y);
@@ -327,55 +353,55 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
 
                 // Sites A and C - small cool-colored circles
                 app.noStroke();
-                app.fill(StyleB.pastelMarkerColor(app, alpha));
+                app.fill(ThemeEngine.pastelMarkerColor(app, theme, alpha));
                 app.ellipse(flash.a.x, flash.a.y, 8, 8);
                 app.ellipse(flash.c.x, flash.c.y, 8, 8);
 
                 // Site B (disappearing arc) - larger warm-colored circle
-                app.fill(StyleB.disappearingArcMarkerColor(app, alpha));
+                app.fill(ThemeEngine.disappearingArcMarkerColor(app, theme, alpha));
                 app.ellipse(flash.b.x, flash.b.y, 16, 16);
             }
 
             // === PHASE 2: "Empty Circle" (0.4 - 1.0) ===
-            if (t >= StyleB.CIRCLE_EVENT_STAGE1_END && t < StyleB.CIRCLE_EVENT_STAGE2_END) {
-                float phase = PApplet.map(t, StyleB.CIRCLE_EVENT_STAGE1_END, StyleB.CIRCLE_EVENT_STAGE2_END, 0f, 1f);
+            if (t >= ThemeEngine.CIRCLE_EVENT_STAGE1_END && t < ThemeEngine.CIRCLE_EVENT_STAGE2_END) {
+                float phase = PApplet.map(t, ThemeEngine.CIRCLE_EVENT_STAGE1_END, ThemeEngine.CIRCLE_EVENT_STAGE2_END, 0f, 1f);
                 float peakFactor = 1.0f - Math.abs(phase - 0.5f) * 2f;
 
                 float d = flash.radius * 2;
 
-                // Soft fill inside the circle (pale cyan, low alpha)
-                int fillAlpha = (int)(peakFactor * 35); // 20-40 range
-                app.fill(StyleB.circleFillColor(app, fillAlpha));
+                // Soft fill inside the circle
+                int fillAlpha = (int)(peakFactor * 35);
+                app.fill(ThemeEngine.circleFillColor(app, theme, fillAlpha));
                 app.noStroke();
                 app.ellipse(flash.center.x, flash.center.y, d, d);
 
-                // Outer halo - thick translucent bright cyan (7.0px)
+                // Outer halo - thick translucent
                 app.noFill();
-                int outerAlpha = (int)(peakFactor * 110); // 90-120 range
-                app.stroke(StyleB.circleGlowOuterColor(app, outerAlpha));
+                int outerAlpha = (int)(peakFactor * 110);
+                app.stroke(ThemeEngine.circleGlowOuterColor(app, theme, outerAlpha));
                 app.strokeWeight(7.0f);
                 app.ellipse(flash.center.x, flash.center.y, d, d);
 
-                // Inner ring - thin white stroke (2.5px)
+                // Inner ring - thin white stroke
                 int innerAlpha = (int)(peakFactor * 220);
-                app.stroke(StyleB.circleGlowInnerColor(app, innerAlpha));
+                app.stroke(ThemeEngine.circleGlowInnerColor(app, theme, innerAlpha));
                 app.strokeWeight(2.5f);
                 app.ellipse(flash.center.x, flash.center.y, d, d);
 
-                // Visual cue at center (checkmark or small dot fading in)
+                // Visual cue at center
                 int cueAlpha = (int)(phase * 200);
-                app.fill(StyleB.circleGlowInnerColor(app, cueAlpha));
+                app.fill(ThemeEngine.circleGlowInnerColor(app, theme, cueAlpha));
                 app.noStroke();
                 app.ellipse(flash.center.x, flash.center.y, 6, 6);
             }
 
             // === PHASE 3: "Vertex and Edges" (1.0 - 1.6) ===
-            if (t >= StyleB.CIRCLE_EVENT_STAGE2_END) {
-                float phase = PApplet.map(t, StyleB.CIRCLE_EVENT_STAGE2_END, 1f, 0f, 1f);
+            if (t >= ThemeEngine.CIRCLE_EVENT_STAGE2_END) {
+                float phase = PApplet.map(t, ThemeEngine.CIRCLE_EVENT_STAGE2_END, 1f, 0f, 1f);
                 int alpha = (int)((1.0f - phase) * 220);
 
                 // Solid dot at circle center (Voronoi vertex)
-                app.fill(StyleB.vertexDotColor(app, alpha));
+                app.fill(ThemeEngine.vertexDotColor(app, alpha));
                 app.noStroke();
                 app.ellipse(flash.center.x, flash.center.y, 10, 10);
 
@@ -392,8 +418,8 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
                 PVector midCA = PVector.add(flash.c, flash.a).mult(0.5f);
                 PVector dirCA = PVector.sub(midCA, flash.center).normalize().mult(flash.radius * 0.3f);
 
-                // Draw spokes (bright white/cyan)
-                app.stroke(StyleB.spokeColor(app, alpha));
+                // Draw spokes
+                app.stroke(ThemeEngine.spokeColor(app, theme, alpha));
                 app.strokeWeight(3.0f);
 
                 PVector spokeEnd1 = PVector.add(flash.center, dirAB);
@@ -406,12 +432,12 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
                 app.line(flash.center.x, flash.center.y, spokeEnd3.x, spokeEnd3.y);
 
                 // Optional: Emphasize disappearing arc B during first half of phase 3
-                float phase3Duration = 1f - StyleB.CIRCLE_EVENT_STAGE2_END;
-                if (t < StyleB.CIRCLE_EVENT_STAGE2_END + phase3Duration * 0.5f) {
-                    float emphasisPhase = (t - StyleB.CIRCLE_EVENT_STAGE2_END) / (phase3Duration * 0.5f);
+                float phase3Duration = 1f - ThemeEngine.CIRCLE_EVENT_STAGE2_END;
+                if (t < ThemeEngine.CIRCLE_EVENT_STAGE2_END + phase3Duration * 0.5f) {
+                    float emphasisPhase = (t - ThemeEngine.CIRCLE_EVENT_STAGE2_END) / (phase3Duration * 0.5f);
                     int emphasisAlpha = (int)((1.0f - emphasisPhase) * 200);
                     app.noFill();
-                    app.stroke(StyleB.disappearingArcMarkerColor(app, emphasisAlpha));
+                    app.stroke(ThemeEngine.disappearingArcMarkerColor(app, theme, emphasisAlpha));
                     app.strokeWeight(4.0f);
                     app.ellipse(flash.b.x, flash.b.y, 20, 20);
                 }

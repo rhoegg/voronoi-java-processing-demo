@@ -23,8 +23,8 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
 
     private ScreenTransform camera; // world to screen transform
 
-    public CircleEventZoom(PApplet app, List<PVector> clusterSites) {
-        super(app, clusterSites);
+    public CircleEventZoom(PApplet app, List<PVector> clusterSites, Theme theme) {
+        super(app, clusterSites, theme);
         fortune = initFortune();
         worldCenter = computeCenter(clusterSites);
         camera = ScreenTransform.identity();
@@ -70,12 +70,27 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
 
     @Override
     public void draw() {
-        StyleB.drawGradientBackground(app);
+        ThemeEngine.drawGradientBackground(app, theme);
         float siteSize = PApplet.lerp(6, 16, smoothStep(zoomT));
+
+        // Draw shadows first
+        int shadowColor = ThemeEngine.siteShadow(app, theme);
         app.noStroke();
         sites.forEach(worldSite -> {
             PVector cameraSite = camera.apply(worldSite);
-            app.fill(StyleB.siteColor(app, worldSite));
+            app.fill(shadowColor);
+            app.ellipse(cameraSite.x + 1, cameraSite.y + 1, siteSize + 2, siteSize + 2);
+        });
+
+        // Draw sites on top
+        sites.forEach(worldSite -> {
+            PVector cameraSite = camera.apply(worldSite);
+            int siteFill = ThemeEngine.siteFill(app, theme, worldSite);
+            int siteStroke = ThemeEngine.siteStroke(app, theme, worldSite.x, worldSite.y);
+
+            app.stroke(siteStroke);
+            app.strokeWeight(0.8f);
+            app.fill(siteFill);
             app.ellipse(cameraSite.x, cameraSite.y, siteSize, siteSize);
         });
     }
