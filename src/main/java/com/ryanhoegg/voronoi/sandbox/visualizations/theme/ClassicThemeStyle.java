@@ -236,26 +236,62 @@ public class ClassicThemeStyle implements ThemeStyle {
     // ==================== PARABOLAS ====================
 
     @Override
-    public void drawParabola(PApplet app, Path path, boolean highlight, PVector site) {
-        // Get site color from first point (approximate)
-        PVector firstPoint = path.getPoints().isEmpty() ? new PVector(0, 0) : path.getPoints().get(0);
-        int baseColor = getMultiHueColor(app, firstPoint.x, firstPoint.y);
+    public void drawParabola(PApplet app, Path path, boolean highlight, PVector site, float zoom) {
+        app.pushStyle();
 
+        // Get multi-hue color for this site
+        int baseColor = getMultiHueColor(app, site.x, site.y);
         int r = (baseColor >> 16) & 0xFF;
         int g = (baseColor >> 8) & 0xFF;
         int b = baseColor & 0xFF;
 
+        // Target screen-space thicknesses
+        float normalBaseWeight = 0.8f;
+        float highlightedBaseWeight = 6.6f; // Ensures ~2.2px at zoom=3.0
+        float targetScreenThickness = 2.2f;
+
+        // Compute zoom-compensated weight
+        float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
+        float compensatedWeight = baseWeight / zoom;
+
+        // Clamp highlighted parabolas to avoid excessive thickness at low zoom
         if (highlight) {
-            app.stroke(app.color(r, g, b, 220));
-            app.strokeWeight(2.2f);
-        } else {
-            app.stroke(app.color(r, g, b, 60));
-            app.strokeWeight(0.8f);
+            compensatedWeight = Math.min(compensatedWeight, targetScreenThickness);
         }
 
+        // Glow layer for highlighted parabolas
+        if (highlight) {
+            app.noFill();
+            float glowWeight = compensatedWeight + 2.5f;
+            app.stroke(app.color(r, g, b, 60)); // Alpha ~60
+            app.strokeWeight(glowWeight);
+            app.strokeCap(PApplet.ROUND);
+            app.strokeJoin(PApplet.ROUND);
+            drawCurveVertexPath(app, path);
+        }
+
+        // Main parabola curve
         app.noFill();
+        app.stroke(app.color(r, g, b, highlight ? 220 : 60));
+        app.strokeWeight(compensatedWeight);
+        app.strokeCap(PApplet.ROUND);
+        app.strokeJoin(PApplet.ROUND);
+        drawCurveVertexPath(app, path);
+
+        app.popStyle();
+    }
+
+    /**
+     * Draw a smooth curve through the path points.
+     * Uses regular vertex with dense sampling (120 points) and rounded caps/joins.
+     * Avoids curveVertex oscillation artifacts from concentrated points.
+     */
+    private void drawCurveVertexPath(PApplet app, Path path) {
+        java.util.List<PVector> points = path.getPoints();
+        if (points.isEmpty()) return;
+
         app.beginShape();
-        for (PVector p : path.getPoints()) {
+        for (PVector p : points) {
             app.vertex(p.x, p.y);
         }
         app.endShape();

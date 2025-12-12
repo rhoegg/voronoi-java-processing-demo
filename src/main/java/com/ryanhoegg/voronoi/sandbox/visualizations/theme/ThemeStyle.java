@@ -84,12 +84,15 @@ public interface ThemeStyle {
     /**
      * Draw a parabola with theme-specific stroke styling.
      * Theme controls stroke weight, layering, and colors.
+     * Stroke weight should be compensated by zoom to maintain constant screen-space thickness.
      *
      * @param app PApplet for drawing
      * @param path The parabola path to draw
      * @param highlight Whether this parabola should be emphasized
+     * @param site The parabola's focus site (for color determination)
+     * @param zoom Current camera zoom level (1.0 = no zoom, higher = zoomed in)
      */
-    void drawParabola(PApplet app, Path path, boolean highlight, PVector site);
+    void drawParabola(PApplet app, Path path, boolean highlight, PVector site, float zoom);
 
     // ==================== BEACH LINE ====================
 

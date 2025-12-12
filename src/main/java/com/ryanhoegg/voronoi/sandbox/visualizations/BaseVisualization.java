@@ -114,11 +114,36 @@ public abstract class BaseVisualization implements Visualization {
     // ==================== PARABOLAS ====================
 
     /**
+     * Get the current camera zoom level for zoom-aware rendering.
+     * Subclasses with zoom should override this.
+     *
+     * @return Current zoom factor (1.0 = no zoom, higher = zoomed in)
+     */
+    protected float currentZoom() {
+        return 1.0f; // Default: no zoom
+    }
+
+    /**
      * Draw a parabola for a site with theme-specific styling.
+     * Uses default power=1.0 for uniform sampling (suitable for normal zoom levels).
      */
     protected void drawParabolaForSite(PVector site, float directrixY, boolean highlight) {
         Path path = Path.parabola(site, directrixY, 0, app.width);
-        currentStyle().drawParabola(app, path, highlight, site);
+        currentStyle().drawParabola(app, path, highlight, site, currentZoom());
+    }
+
+    /**
+     * Draw a parabola for a site with custom power-spaced sampling.
+     * Higher power (2.0-2.5) concentrates points near vertex for smoother close-ups.
+     *
+     * @param site The focus site
+     * @param directrixY The directrix y-coordinate
+     * @param highlight Whether to highlight this parabola
+     * @param power Sampling density control (1.0 = uniform, 2.5 = concentrated near vertex)
+     */
+    protected void drawParabolaForSite(PVector site, float directrixY, boolean highlight, float power) {
+        Path path = Path.parabola(site, directrixY, 0, app.width, power);
+        currentStyle().drawParabola(app, path, highlight, site, currentZoom());
     }
 
     // ==================== COMMON UTILITIES ====================

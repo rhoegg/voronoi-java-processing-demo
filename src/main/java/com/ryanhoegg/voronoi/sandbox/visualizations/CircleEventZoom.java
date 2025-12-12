@@ -4,7 +4,6 @@ import com.ryanhoegg.voronoi.core.FortuneContext;
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.Visualization;
-import com.ryanhoegg.voronoi.sandbox.geometry.ScreenTransform;
 import processing.core.PApplet;
 import processing.core.PVector;
 
@@ -16,19 +15,30 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
 
     private enum Scene {
         INTRO_ZOOM,
-        FIRST_SITE_EVENT,
+        APPROACH_FIRST_SITE,
+        SETTLE_BELOW_FIRST_SITE
     }
 
     private Scene scene = Scene.INTRO_ZOOM;
     private float sceneT = 0f;
+
     private float sweepY = 0f;
     private static final float SWEEP_SPEED = 55f;
+
+    // scene transition and sweep settle
+    private float sweepStartY;
+    private float sweepTargetY;
+    private float sweepSettleT = 0f;
+    private boolean sweepSettling = false;
+
+    private final float sweepSettleDuration = 2.6f;
+
 
     private final PVector firstSite;
 
     // camera / zoom
     private final PVector worldCenter;
-    private final float targetZoom = 3.5f;
+    private final float targetZoom = 3.0f;
     private final float zoomDuration = 1.8f;
 
     private float zoomT = 0.0f;    // zoom progress from 0 to 1
@@ -69,12 +79,15 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         switch(scene) {
             case INTRO_ZOOM:
                 if (zoomDone) {
-                    scene = Scene.FIRST_SITE_EVENT;
+                    scene = Scene.APPROACH_FIRST_SITE;
                     sceneT = 0f;
-                    sweepY = firstSite.y - 80f;
+                    sweepStartY = firstSite.y - 80f;
+                    sweepTargetY = firstSite.y + 0.1f;
+                    sweepSettleT = 0f;
+                    sweepSettling = true;
                 }
                 break;
-            case FIRST_SITE_EVENT:
+            case APPROACH_FIRST_SITE:
                 break;
         }
     }
@@ -94,12 +107,16 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                     }
                 }
                 break;
-            case FIRST_SITE_EVENT:
+            case APPROACH_FIRST_SITE:
                 zoomT = 1f;
-
-                float targetY = firstSite.y + 40f;
-                if (sweepY < targetY) {
-                    sweepY += SWEEP_SPEED * dt;
+                if (sweepSettling) {
+                    sweepSettleT += dt / sweepSettleDuration;
+                    if (sweepSettleT >= 1f) {
+                        sweepSettleT = 1f;
+                        sweepSettling = false;
+                    }
+                    float u = easeOutCubic(sweepSettleT);
+                    sweepY = PApplet.lerp(sweepStartY, sweepTargetY, u);
                 }
                 break;
         }
@@ -113,7 +130,7 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
 
         switch (scene) {
             case INTRO_ZOOM -> drawIntroZoomScene();
-            case FIRST_SITE_EVENT -> drawFirstSiteEventScene();
+            case APPROACH_FIRST_SITE -> drawApproachFirstSiteScene();
         }
 
         app.popMatrix();
@@ -123,9 +140,12 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         drawClusterSites();
     }
 
-    private void drawFirstSiteEventScene() {
+    private void drawApproachFirstSiteScene() {
         drawClusterSites();
         drawSweepLine(sweepY);
+        // Use power=2.5 for concentrated sampling near vertex during zoom close-up
+        if (sweepY > firstSite.y) drawParabolaForSite(firstSite, sweepY, true, 2.5f);
+        drawUnseenArea(sweepY);
     }
 
     private void drawClusterSites() {
@@ -133,24 +153,34 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         sites.forEach(s -> {
             boolean isFirstSite = s.equals(firstSite);
             // In FIRST_SITE_EVENT scene, highlight the first site (theme will pulse it)
-            boolean shouldHighlight = scene == Scene.FIRST_SITE_EVENT && isFirstSite;
+            boolean shouldHighlight = scene == Scene.APPROACH_FIRST_SITE && isFirstSite;
             drawSite(s, shouldHighlight);
         });
+    }
+
+    @Override
+    protected float currentZoom() {
+        float easing = smoothStep(zoomT);
+        return PApplet.lerp(1f, targetZoom, easing);
+    }
+
+    private void applyCamera() {
+        PVector screenCenter = new PVector(app.width / 2.0f, app.height / 2.0f);
+        float zoom = currentZoom(); // Use centralized zoom calculation
+
+        PVector focus = PVector.lerp(screenCenter, worldCenter, smoothStep(zoomT));
+        app.translate(screenCenter.x, screenCenter.y);
+        app.scale(zoom);
+        app.translate(-focus.x, -focus.y);
     }
 
     private float smoothStep(float t) {
         return t * t * (3f - 2f * t);
     }
 
-    private void applyCamera() {
-        PVector screenCenter = new PVector(app.width / 2.0f, app.height / 2.0f);
-        float easing = smoothStep(zoomT); // eased progress between 0 and 1
-        // eased zoom
-        float zoom = PApplet.lerp(1f, targetZoom, easing);
-
-        PVector focus = PVector.lerp(screenCenter, worldCenter, easing);
-        app.translate(screenCenter.x, screenCenter.y);
-        app.scale(zoom);
-        app.translate(-focus.x, -focus.y);
+    private float easeOutCubic(float t) {
+        t = PApplet.constrain(t, 0f, 1f);
+        float inv = 1f - t;
+        return 1f - inv * inv * inv;
     }
 }
