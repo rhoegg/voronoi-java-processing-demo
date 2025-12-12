@@ -13,6 +13,7 @@ import processing.core.PApplet;
 import processing.core.PVector;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -47,7 +48,8 @@ public class VoronoiDemo extends PApplet {
 
     @Override
     public void setup() {
-        noLoop();
+        // Always use loop() for smooth animations (pulsing, zoom easing, etc.)
+        // Manual vs auto only controls whether step() is called automatically
         Random r = new Random();
 
         circleDemoSites = generateNiceCluster(7, r);
@@ -60,6 +62,7 @@ public class VoronoiDemo extends PApplet {
                 sites.add(candidate);
             }
         }
+        Collections.shuffle(sites);
         visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
         lastMillis = millis();
     }
@@ -70,9 +73,13 @@ public class VoronoiDemo extends PApplet {
         float dt = (now - lastMillis) / 1000f;
         lastMillis = now;
 
+        // Clamp dt to avoid huge jumps (e.g., after window drag or switching modes)
+        dt = Math.min(dt, 0.05f);
+
+        visualization.update(dt);
+        accumulatedTime += dt;
+
         if (auto) { // advance steps automatically
-            visualization.update(dt);
-            accumulatedTime += dt;
             while (accumulatedTime >= stepInterval) {
                 accumulatedTime -= stepInterval;
                 visualization.step();
@@ -88,26 +95,22 @@ public class VoronoiDemo extends PApplet {
             case '1':
                 visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
                 auto = false;
-                noLoop();
-                redraw();
+                resetTiming(); // Reset timing to avoid dt jumps
                 break;
             case '2':
                 visualization = new HalfPlaneDiagram(this, sites, currentTheme);
                 auto = false;
-                noLoop();
-                redraw();
+                resetTiming();
                 break;
             case '3':
                 visualization = new CircleEventZoom(this, circleDemoSites, currentTheme);
                 auto = false;
-                lastMillis = millis();
-                loop();
+                resetTiming();
                 break;
             case '4':
                 visualization = new FortuneSweepLine(this, sites, currentTheme);
                 auto = false;
-                noLoop();
-                redraw();
+                resetTiming();
                 break;
             case 't':
                 // Toggle theme
@@ -123,34 +126,36 @@ public class VoronoiDemo extends PApplet {
                 } else if (visualization instanceof FortuneSweepLine) {
                     visualization = new FortuneSweepLine(this, sites, currentTheme);
                 }
-                redraw();
+                resetTiming();
                 break;
             case ' ':
+                // Manual step: call step() once but keep animating
                 auto = false;
-                noLoop();
                 visualization.step();
-                redraw();
                 break;
             case 'a':
+                // Toggle auto mode
                 auto = !auto;
-                if (auto) {
-                    lastMillis = millis();
-                    loop();
-                    System.out.println("auto mode");
-                } else {
-                    noLoop();
-                }
+                resetTiming(); // Reset timing to avoid dt jumps when toggling
+                System.out.println(auto ? "auto mode" : "manual mode");
                 break;
             case 'r':
                 visualization.reset();
                 auto = false;
-                noLoop();
-                redraw();
+                resetTiming();
                 break;
             default:
                 System.out.println("Key pressed: " + (int) key);
         }
         visualization.keyPressed(key, keyCode);
+    }
+
+    /**
+     * Reset timing state to avoid huge dt jumps when switching modes/visualizations.
+     */
+    private void resetTiming() {
+        lastMillis = millis();
+        accumulatedTime = 0f;
     }
 
     private List<PVector> generateNiceCluster(int count, Random r) {

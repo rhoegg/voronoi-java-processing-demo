@@ -49,6 +49,7 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
 
     @Override
     public void draw() {
+        drawBackground();
         drawSites();
         drawFocusSite();
         drawHighlightedNeighbor();
@@ -62,22 +63,10 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
 
     /**
      * Draw the focus site with a bright color and subtle pulsing halo.
+     * Theme handles pulsing animation.
      */
     void drawFocusSite() {
-        // Subtle pulsing halo effect
-        float time = app.millis() / 1000.0f;
-        float pulsePhase = (float) Math.sin(time * 2.0f) * 0.5f + 0.5f; // 0..1
-        int haloAlpha = (int) (40 + pulsePhase * 60); // 40-100
-        float haloSize = 20 + pulsePhase * 8; // 20-28
-
-        // Draw halo
-        app.noStroke();
-        app.fill(ThemeEngine.focusSiteHaloColor(app, theme, haloAlpha));
-        app.ellipse(focused.x, focused.y, haloSize, haloSize);
-
-        // Draw main focus site dot
-        app.fill(ThemeEngine.focusSiteColor(app, theme));
-        app.ellipse(focused.x, focused.y, 14, 14);
+        drawSite(focused, true);
     }
 
     @Override
@@ -115,10 +104,10 @@ public class SingleCellHalfPlaneClip extends BaseVisualization {
 
     void drawHighlightedNeighbor() {
         if (null != neighborHighlight) {
-            app.stroke(ThemeEngine.highlightedNeighborColor(app, theme));
-            app.strokeWeight(ThemeEngine.NORMAL_LINE);
-            app.fill(ThemeEngine.highlightedNeighborFill(app, theme));
-            app.ellipse(neighborHighlight.x, neighborHighlight.y, 12, 12);
+            // Draw highlighted neighbor using centralized method
+            // Use custom colors via special highlight color in ThemeEngine
+            // For now, just use standard highlighted drawing
+            drawSite(neighborHighlight, true);
         }
     }
 

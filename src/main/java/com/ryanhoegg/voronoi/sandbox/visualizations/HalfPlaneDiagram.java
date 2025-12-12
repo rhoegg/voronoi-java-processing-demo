@@ -37,6 +37,7 @@ public class HalfPlaneDiagram extends BaseVisualization {
 
     @Override
     public void draw() {
+        drawBackground();
         drawSites();
         drawRegions();
         drawActiveSite();
@@ -69,23 +70,12 @@ public class HalfPlaneDiagram extends BaseVisualization {
 
     /**
      * Draw the currently active site (being processed) with emphasis.
+     * Theme handles pulsing animation.
      */
     void drawActiveSite() {
         if (siteIndex > 0 && siteIndex <= sites.size()) {
             PVector activeSite = sites.get(siteIndex - 1);
-
-            // Draw subtle glow around active site
-            app.noStroke();
-            app.fill(ThemeEngine.focusSiteHaloColor(app, theme, 60));
-            app.ellipse(activeSite.x, activeSite.y, 18, 18);
-
-            // Draw active site dot (slightly larger and brighter)
-            int siteColor = ThemeEngine.siteFill(app, theme, activeSite);
-            int r = (siteColor >> 16) & 0xFF;
-            int g = (siteColor >> 8) & 0xFF;
-            int b = siteColor & 0xFF;
-            app.fill(app.color(r, g, b, 255)); // Full opacity
-            app.ellipse(activeSite.x, activeSite.y, 14, 14);
+            drawSite(activeSite, true);
         }
     }
 
