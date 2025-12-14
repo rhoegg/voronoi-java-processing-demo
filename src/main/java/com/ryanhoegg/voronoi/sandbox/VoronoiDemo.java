@@ -12,18 +12,16 @@ import com.ryanhoegg.voronoi.sandbox.visualizations.Theme;
 import processing.core.PApplet;
 import processing.core.PVector;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class VoronoiDemo extends PApplet {
     final int SITE_COUNT = 50;
     final int WIDTH = 1280;
     final int HEIGHT = 720;
 
-    final float centralWidth = 0.2f;
-    final float centralHeight = 0.25f;
+    final float centralWidth = 0.22f;
+    final float centralHeight = 0.26f;
 
     List<PVector> sites = new ArrayList<>();
     List<PVector> circleDemoSites = new ArrayList<>();
@@ -53,6 +51,7 @@ public class VoronoiDemo extends PApplet {
         Random r = new Random();
 
         circleDemoSites = generateNiceCluster(7, r);
+
         sites.addAll(circleDemoSites);
         PVector center = new PVector(width / 2, height / 2);
         while (sites.size() < SITE_COUNT) {
@@ -161,6 +160,10 @@ public class VoronoiDemo extends PApplet {
     private List<PVector> generateNiceCluster(int count, Random r) {
         for (int i = 0; i < 50; i++) {
             List<PVector> cluster = randomClusterInCenter(7, r);
+            cluster.sort(Comparator.comparingDouble(p -> p.y));
+            fixHighestSitePosition(cluster);
+            fixSecondSitePosition(cluster);
+            fixRemainingSites(cluster);
             if (clusterLooksNice(cluster)) {
                 return cluster;
             }
@@ -169,7 +172,78 @@ public class VoronoiDemo extends PApplet {
         return randomClusterInCenter(7, r);
     }
 
+    private void fixHighestSitePosition(List<PVector> cluster) {
+        float clusterCenterY = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.y)).floatValue();
+        float adjustFirstSiteY = 0f;
+        if (cluster.get(0).y < clusterCenterY - 0.15f * height) {
+            System.out.println("lowering first site y by " + (clusterCenterY - 0.15f * height - cluster.get(0).y));
+            adjustFirstSiteY = clusterCenterY - 0.15f * height - cluster.get(0).y;
+        } else if (cluster.get(0).y > clusterCenterY - 0.142f * height) {
+            System.out.println("raising first site y by " + -1 * (clusterCenterY - 0.142f * height - cluster.get(0).y));
+            adjustFirstSiteY = clusterCenterY - 0.142f * height - cluster.get(0).y;
+        }
+        if (adjustFirstSiteY != 0f) {
+            for (int i = 0; i < cluster.size(); i++) {
+                if (i == 0) {
+                    cluster.get(i).y += adjustFirstSiteY;
+                } else {
+                    cluster.get(i).y -= (adjustFirstSiteY / (cluster.size() - 1));
+                }
+            }
+        }
+    }
+
+    private void fixSecondSitePosition(List<PVector> cluster) {
+        float clusterCenterY = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.y)).floatValue();
+        float adjustSiteY = 0f;
+        if (cluster.get(1).y < clusterCenterY - 0.135f * height) {
+            System.out.println("lowering second site y by " + (clusterCenterY - 0.135f * height - cluster.get(1).y));
+            adjustSiteY = clusterCenterY - 0.135f * height - cluster.get(1).y;
+        }
+        if (adjustSiteY != 0f) {
+            for (int i = 1; i < cluster.size(); i++) {
+                if (i == 1) {
+                    cluster.get(i).y += adjustSiteY;
+                } else {
+                    cluster.get(i).y -= (adjustSiteY / (cluster.size() - 2));
+                }
+            }
+        }
+    }
+
+    private void fixRemainingSites(List<PVector> cluster) {
+        float clusterCenterY = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.y)).floatValue();
+        float minimum = cluster.get(1).y;
+        for (int i = 2; i < cluster.size(); i++) {
+            float catchup = 0f;
+            if (cluster.get(i).y <= minimum) {
+                catchup = minimum - cluster.get(i).y + 0.01f * height;
+                minimum = cluster.get(i).y + catchup;
+            }
+            if (catchup > 0f) {
+                cluster.get(i).y += catchup;
+                for (int j = i + 1; j < cluster.size(); j++) {
+                    cluster.get(j).y -= catchup / (cluster.size() - i - 1);
+                }
+            }
+        }
+    }
+
+
     private boolean clusterLooksNice(List<PVector> cluster) {
+
+        // not too close together
+        float minDistance = 0.15f * Math.min(width * centralWidth, height * centralHeight);
+        for (PVector v : cluster) {
+            for (PVector v2 : cluster) {
+                if (! v2.equals(v)) {
+                    if (v.dist(v2) < minDistance) {
+                        return false;
+                    }
+                }
+            }
+        }
+
         List<Point> points = cluster.stream().map(v -> new Point(v.x, v.y)).toList();
         Bounds bounds = new Bounds(0, 0, width, height);
         FortuneContext fortune = new  FortuneContext(points, bounds);
@@ -204,17 +278,7 @@ public class VoronoiDemo extends PApplet {
                 return false;
             }
         }
-        // not too close together
-        float minDistance = 0.15f * Math.min(width * centralWidth, height * centralHeight);
-        for (PVector v : cluster) {
-            for (PVector v2 : cluster) {
-                if (! v2.equals(v)) {
-                    if (v.dist(v2) < minDistance) {
-                        return false;
-                    }
-                }
-            }
-        }
+        System.out.println("Top cluster site at " + cluster.get(0).y + " (" + cluster.get(0).y / height + ")");
         return true;
     }
 
@@ -228,7 +292,7 @@ public class VoronoiDemo extends PApplet {
                         .andThen(ScreenTransform.scale(width * centralWidth, height * centralHeight))
                         .andThen(ScreenTransform.translate(width / 2, height / 2));
 
-        return cluster.stream().map(transform::apply).toList();
+        return cluster.stream().map(transform::apply).collect(Collectors.toCollection(ArrayList::new));
     }
 }
 

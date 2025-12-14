@@ -1,5 +1,7 @@
 package com.ryanhoegg.voronoi.sandbox.visualizations;
 
+import com.ryanhoegg.voronoi.core.geometry.Geometry2D;
+import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.Path;
 import com.ryanhoegg.voronoi.sandbox.Visualization;
 import com.ryanhoegg.voronoi.sandbox.visualizations.theme.ThemeStyle;
@@ -174,5 +176,12 @@ public abstract class BaseVisualization implements Visualization {
         app.stroke(ThemeEngine.starburstStrokeColor(app, 225));
         app.strokeWeight(ThemeEngine.THIN_LINE);
         draw(Path.star(location, radius));
+    }
+
+    protected float parabolaY(PVector p, float x, float directrixY) {
+        return Double.valueOf(Geometry2D.parabolaY(
+                new Point(p.x, p.y),
+                Float.valueOf(x).doubleValue(),
+                Float.valueOf(directrixY).doubleValue())).floatValue();
     }
 }

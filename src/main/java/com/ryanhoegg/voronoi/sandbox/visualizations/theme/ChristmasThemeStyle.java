@@ -331,4 +331,27 @@ public class ChristmasThemeStyle implements ThemeStyle {
         // Apply beach line alpha (245 for strong visibility)
         return app.color(r, g, b, 245);
     }
+
+    // ==================== WITNESS ====================
+
+    @Override
+    public void drawWitness(PApplet app, PVector pos, float alpha) {
+        final float r = 250;
+        final float g = 240;
+        final float b = 210;
+        int baseColor = app.color(250, 240, 210, alpha * 255); // warm white
+
+        app.pushStyle();
+        if (alpha > 0.3f) {
+            app.fill(app.color(r, g, b, alpha * 255 / 8));
+            app.ellipse(pos.x, pos.y, 11f, 11f);
+        }
+        app.fill(app.color(r, g, b, alpha * 255 / 4));
+        app.ellipse(pos.x, pos.y, 9f, 9f);
+        app.fill(app.color(r, g, b, alpha * 255 / 2));
+        app.ellipse(pos.x, pos.y, 7f, 7f);
+        app.fill(baseColor);
+        app.ellipse(pos.x, pos.y, 5f, 5f);
+        app.popStyle();
+    }
 }

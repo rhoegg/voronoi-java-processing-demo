@@ -16,14 +16,14 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private enum Scene {
         INTRO_ZOOM,
         APPROACH_FIRST_SITE,
-        SETTLE_BELOW_FIRST_SITE
+        SETTLE_BELOW_FIRST_SITE,
+        EQUAL_DISTANCE_REVEAL
     }
 
     private Scene scene = Scene.INTRO_ZOOM;
     private float sceneT = 0f;
 
     private float sweepY = 0f;
-    private static final float SWEEP_SPEED = 55f;
 
     // scene transition and sweep settle
     private float sweepStartY;
@@ -31,8 +31,11 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private float sweepSettleT = 0f;
     private boolean sweepSettling = false;
 
-    private final float sweepSettleDuration = 2.6f;
+    private PVector witness = new PVector(0f, 0f);
+    private float witnessA;
+    private static final float WITNESS_FADE_TIME = 0.4f;
 
+    private final float sweepSettleDuration = 2.6f;
 
     private final PVector firstSite;
 
@@ -88,6 +91,18 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                 }
                 break;
             case APPROACH_FIRST_SITE:
+                scene = Scene.SETTLE_BELOW_FIRST_SITE;
+                sceneT = 0f;
+                sweepStartY = sweepY;
+                sweepTargetY = firstSite.y + 42f;
+                sweepSettleT = 0f;
+                sweepSettling = true;
+                witness.x = firstSite.x;
+                witnessA = 0f;
+                break;
+            case SETTLE_BELOW_FIRST_SITE:
+                scene = Scene.EQUAL_DISTANCE_REVEAL;
+                sceneT = 0f;
                 break;
         }
     }
@@ -119,6 +134,22 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                     sweepY = PApplet.lerp(sweepStartY, sweepTargetY, u);
                 }
                 break;
+            case SETTLE_BELOW_FIRST_SITE:
+                if (sweepSettling) {
+                    sweepSettleT += dt / sweepSettleDuration;
+                    if (sweepSettleT >= 1f) {
+                        sweepSettleT = 1f;
+                        sweepSettling = false;
+                    }
+                    float u = smoothStep(sweepSettleT);
+                    sweepY = PApplet.lerp(sweepStartY, sweepTargetY, u);
+                    if (sweepSettleT > (1 - WITNESS_FADE_TIME) / sweepSettleDuration) {
+                        float fadeStart = 1 - (WITNESS_FADE_TIME / sweepSettleDuration);
+                        witnessA = PApplet.constrain((sweepSettleT - fadeStart) / (1f - fadeStart), 0f, 1f);
+                        witness.y = parabolaY(firstSite, witness.x, sweepY);
+                    }
+                }
+                break;
         }
     }
 
@@ -131,6 +162,7 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         switch (scene) {
             case INTRO_ZOOM -> drawIntroZoomScene();
             case APPROACH_FIRST_SITE -> drawApproachFirstSiteScene();
+            case SETTLE_BELOW_FIRST_SITE -> drawSettleBelowFirstSiteScene();
         }
 
         app.popMatrix();
@@ -143,9 +175,18 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private void drawApproachFirstSiteScene() {
         drawClusterSites();
         drawSweepLine(sweepY);
-        // Use power=2.5 for concentrated sampling near vertex during zoom close-up
         if (sweepY > firstSite.y) drawParabolaForSite(firstSite, sweepY, true, 2.5f);
         drawUnseenArea(sweepY);
+    }
+
+    private void drawSettleBelowFirstSiteScene() {
+        drawClusterSites();
+        drawSweepLine(sweepY);
+        if (sweepY > firstSite.y) drawParabolaForSite(firstSite, sweepY, true, 2.5f);
+        drawUnseenArea(sweepY);
+        if (witnessA > 0f) {
+            currentStyle().drawWitness(app, witness, witnessA);
+        }
     }
 
     private void drawClusterSites() {
@@ -153,7 +194,12 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         sites.forEach(s -> {
             boolean isFirstSite = s.equals(firstSite);
             // In FIRST_SITE_EVENT scene, highlight the first site (theme will pulse it)
-            boolean shouldHighlight = scene == Scene.APPROACH_FIRST_SITE && isFirstSite;
+            boolean shouldHighlight = false;
+            switch(scene) {
+                case APPROACH_FIRST_SITE:
+                case SETTLE_BELOW_FIRST_SITE:
+                    shouldHighlight = isFirstSite;
+            }
             drawSite(s, shouldHighlight);
         });
     }

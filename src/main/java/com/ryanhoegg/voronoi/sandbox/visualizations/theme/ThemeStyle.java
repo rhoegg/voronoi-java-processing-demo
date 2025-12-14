@@ -106,4 +106,7 @@ public interface ThemeStyle {
      * @return Color int (ARGB) for beach line segment
      */
     int beachLineColorForSite(PApplet app, double x, double y);
+
+    // ==================== WITNESS ====================
+    void drawWitness(PApplet app, PVector pos, float alpha);
 }

@@ -310,4 +310,11 @@ public class ClassicThemeStyle implements ThemeStyle {
         // Apply beach line alpha (245 for strong visibility)
         return app.color(r, g, b, 245);
     }
+
+    // ==================== WITNESS ====================
+
+    @Override
+    public void drawWitness(PApplet app, PVector pos, float alpha) {
+
+    }
 }
