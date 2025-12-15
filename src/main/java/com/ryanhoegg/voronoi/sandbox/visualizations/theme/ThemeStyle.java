@@ -107,6 +107,8 @@ public interface ThemeStyle {
      */
     int beachLineColorForSite(PApplet app, double x, double y);
 
+    void drawBeachArc(PApplet app, Path path, PVector site, boolean highlight, float zoom, float alpha);
+
     // ==================== WITNESS ====================
     void drawWitness(PApplet app, PVector pos, float alpha);
     void drawWitnessSegments(PApplet app, PVector witness, PVector site, float directrixY, float alpha);

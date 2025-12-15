@@ -315,6 +315,10 @@ public final class FortuneContext {
             return this.sites;
         }
 
-        public static record Sites (Point a, Point b, Point c) {}
+        public static record Sites (Point a, Point b, Point c) {
+            public boolean contains(Point p) {
+                return a.equals(p) || b.equals(p) || c.equals(p);
+            }
+        }
     }
 }

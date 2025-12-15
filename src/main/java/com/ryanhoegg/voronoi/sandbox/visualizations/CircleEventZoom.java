@@ -4,20 +4,25 @@ import com.ryanhoegg.voronoi.core.FortuneContext;
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.Visualization;
+import org.jetbrains.annotations.NotNull;
 import processing.core.PApplet;
 import processing.core.PVector;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 public class CircleEventZoom extends BaseVisualization implements Visualization {
-    private final FortuneContext fortune;
+    private final FortuneContext fortunePlan;
+    private final FortuneContext fortuneShow;
+    private final PVector firstSite;
 
     private enum Scene {
         INTRO_ZOOM,
         APPROACH_FIRST_SITE,
         SETTLE_BELOW_FIRST_SITE,
-        EQUAL_DISTANCE_REVEAL
+        EQUAL_DISTANCE_REVEAL,
+        WAKE_CIRCLE_EVENT_SITES,
     }
 
     private Scene scene = Scene.INTRO_ZOOM;
@@ -30,7 +35,9 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private float sweepTargetY;
     private float sweepSettleT = 0f;
     private boolean sweepSettling = false;
+    private final float sweepSettleDuration = 2.6f;
 
+    // witness
     private PVector witness = new PVector(0f, 0f);
     private float witnessA;
     private float witnessEndpointX1, witnessEndpointX2;
@@ -38,9 +45,13 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private static final float WITNESS_PERIOD = 10f;
     private static final float WITNESS_SWING = 47f;
 
-    private final float sweepSettleDuration = 2.6f;
+    // beach line
+    private List<ArcPath> beachLine = new ArrayList<>();
+    private float beachLineA = 0f;
 
-    private final PVector firstSite;
+    // circle event
+    FortuneContext.CircleEvent circleEvent;
+    private PVector circleSite2, circleSite3;
 
     // camera / zoom
     private final PVector worldCenter;
@@ -50,9 +61,13 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private float zoomT = 0.0f;    // zoom progress from 0 to 1
     private boolean zoomDone = false;
 
+    private boolean fadingOut = false;
+    private float fadeT = 0f;
+
     public CircleEventZoom(PApplet app, List<PVector> clusterSites, Theme theme) {
         super(app, clusterSites, theme);
-        fortune = initFortune();
+        fortunePlan = initFortune();
+        fortuneShow = initFortune();
         worldCenter = computeCenter(clusterSites);
         firstSite = clusterSites.stream().min(Comparator.comparingDouble(s -> s.y)).orElseThrow();
         this.sweepY = firstSite.y - 80f;
@@ -106,10 +121,44 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
             case SETTLE_BELOW_FIRST_SITE:
                 scene = Scene.EQUAL_DISTANCE_REVEAL;
                 sceneT = 0f;
+                witnessA = 1f;
                 float firstSiteOffset = (app.width / 2 - firstSite.x);
                 float oscillateCenterX = firstSite.x + (0.05f * firstSiteOffset);
                 witnessEndpointX1 = oscillateCenterX + ((firstSiteOffset > 0) ? -WITNESS_SWING : WITNESS_SWING);
                 witnessEndpointX2 = oscillateCenterX + ((firstSiteOffset > 0) ? WITNESS_SWING : -WITNESS_SWING);
+                break;
+            case EQUAL_DISTANCE_REVEAL:
+                fadingOut = true;
+                fadeT = 0f;
+                while (fortunePlan.step() && circleEvent == null) {
+                    switch (fortunePlan.lastEvent()) {
+                         case FortuneContext.CircleEvent e -> {
+                             Point firstSiteLocation = new Point(firstSite.x, firstSite.y);
+                             if (e.sites().contains(firstSiteLocation)) {
+                                 circleEvent = e;
+                             }
+                         }
+                         case FortuneContext.SiteEvent e -> {}
+                         case null -> {}
+                    }
+                }
+                if (null == circleEvent) {
+                    System.out.println("No circle event found!");
+                    System.exit(1);
+                }
+                if (locationEquals(firstSite, circleEvent.sites().a())) {
+                    circleSite2 = findSite(circleEvent.sites().b());
+                    circleSite3 = findSite(circleEvent.sites().c());
+                } else {
+                    circleSite2 = findSite(circleEvent.sites().a());
+                    if (locationEquals(firstSite, circleEvent.sites().b())) {
+                        circleSite3 = findSite(circleEvent.sites().c());
+                    } else {
+                        circleSite3 = findSite(circleEvent.sites().b());
+                    }
+                }
+                sweepStartY = sweepY;
+                sweepTargetY = PApplet.max(firstSite.y, circleSite2.y, circleSite3.y) + 13f;
                 break;
         }
     }
@@ -158,7 +207,6 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                 }
                 break;
             case EQUAL_DISTANCE_REVEAL:
-                witnessA = 1f;
                 if (sceneT > 3f) {
                     if (sceneT < WITNESS_PERIOD / 2 + 3f) {
                         witness.x = PApplet.lerp(firstSite.x, witnessEndpointX1, easeInOutCubic((sceneT - 3f) / (WITNESS_PERIOD / 2)));
@@ -170,6 +218,38 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                     }
                     witness.y = parabolaY(firstSite, witness.x, sweepY);
                 }
+                if (fadingOut) fadeT += dt / WITNESS_FADE_TIME;
+                witnessA = PApplet.constrain(smoothStep(1f - fadeT), 0f, 1f);
+                if (fadingOut && fadeT >= 1f) {
+                    scene = Scene.WAKE_CIRCLE_EVENT_SITES;
+                    sceneT = 0f;
+                }
+
+                break;
+            case WAKE_CIRCLE_EVENT_SITES:
+                if (sceneT < 1.8f) {
+                    sweepY = PApplet.lerp(sweepStartY, sweepTargetY, easeInOutCubic(sceneT / 1.8f));
+                    fadeT = 0;
+                }
+                if (sceneT >= 1.8f && sceneT < 2.4f) {
+                    beachLineA = smoothStep((sceneT - 1.8f) / 0.6f);
+                }
+                // trigger Fortune events as we cross their y
+                boolean done = false;
+                while (true) {
+                    Double nextY = fortuneShow.nextEventY();
+                    if (null == nextY) {
+                        done = true;
+                        break;
+                    }
+                    if (sweepY >= nextY) {
+                        fortuneShow.step();
+                    } else {
+                        break;
+                    }
+                }
+
+                beachLine = computeBeachLineSegments(fortuneShow, sweepY);
                 break;
         }
     }
@@ -185,6 +265,7 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
             case APPROACH_FIRST_SITE -> drawApproachFirstSiteScene();
             case SETTLE_BELOW_FIRST_SITE -> drawSettleBelowFirstSiteScene();
             case EQUAL_DISTANCE_REVEAL -> drawEqualDistanceReveal();
+            case WAKE_CIRCLE_EVENT_SITES -> drawWakeCircleEventSites();
         }
 
         app.popMatrix();
@@ -221,6 +302,13 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         drawUnseenArea(sweepY);
     }
 
+    private void drawWakeCircleEventSites() {
+        drawClusterSites();
+        drawSweepLine(sweepY);
+        drawBeachLine();
+        drawUnseenArea(sweepY);
+    }
+
     private void drawClusterSites() {
         // Draw all sites using centralized drawing (theme handles pulsing)
         sites.forEach(s -> {
@@ -231,19 +319,30 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                 case SETTLE_BELOW_FIRST_SITE:
                 case EQUAL_DISTANCE_REVEAL:
                     shouldHighlight = isFirstSite;
+                    break;
+                case WAKE_CIRCLE_EVENT_SITES:
+                    shouldHighlight = circleEvent.sites().contains(new Point(s.x, s.y));
+                    break;
             }
             drawSite(s, shouldHighlight);
         });
     }
 
     private void drawWitnessSegments() {
-        float fade = (sceneT < 0.4f) ? sceneT / 0.4f : 1f;
+        float fade = (sceneT < 0.4f) ? sceneT / 0.4f : witnessA;
         currentStyle().drawWitnessSegments(app, witness, firstSite, sweepY, fade);
     }
 
     private void drawWitnessDistanceHelpers() {
-        float fade = (sceneT < 2.4f) ? sceneT / 2.4f : 1f;
-        currentStyle().drawWitnessDistanceHelpers(app, witness, firstSite, sweepY, easeInOutCubic(fade));
+        float fade = (sceneT < 2.4f) ? easeInOutCubic(sceneT / 2.4f) : witnessA;
+        currentStyle().drawWitnessDistanceHelpers(app, witness, firstSite, sweepY, fade);
+    }
+
+    private void drawBeachLine() {
+        beachLine.forEach(arcPath -> {
+            PVector site = findSite(arcPath.site());
+            currentStyle().drawBeachArc(app, arcPath.path(), site, circleEvent.sites().contains(arcPath.site()), currentZoom(), 1.0f);
+        });
     }
 
     @Override
@@ -252,11 +351,26 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         return PApplet.lerp(1f, targetZoom, easing);
     }
 
+    @Override
+    protected PVector currentFocus() {
+        PVector screenCenter = new PVector(app.width / 2f, app.height / 2f);
+        return PVector.lerp(screenCenter, worldCenter, smoothStep(zoomT));
+    }
+
+    @NotNull
+    private PVector findSite(Point location) {
+        return sites.stream()
+                .filter(s -> locationEquals(s, location))
+                .findFirst()
+                .orElseThrow();
+    }
+
+
     private void applyCamera() {
         PVector screenCenter = new PVector(app.width / 2.0f, app.height / 2.0f);
         float zoom = currentZoom(); // Use centralized zoom calculation
 
-        PVector focus = PVector.lerp(screenCenter, worldCenter, smoothStep(zoomT));
+        PVector focus = currentFocus();
         app.translate(screenCenter.x, screenCenter.y);
         app.scale(zoom);
         app.translate(-focus.x, -focus.y);

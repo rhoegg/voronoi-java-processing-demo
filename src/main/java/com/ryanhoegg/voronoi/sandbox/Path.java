@@ -51,7 +51,7 @@ public class Path {
      * Generate parabola path with uniform spacing (legacy wrapper).
      * Calls power-spaced version with power=1 for backward compatibility.
      */
-    public static Path parabola(PVector focus, float directrix, int min, int max) {
+    public static Path parabola(PVector focus, float directrix, float min, float max) {
         return parabola(focus, directrix, min, max, 1.0f);
     }
 
@@ -67,9 +67,13 @@ public class Path {
      *              power = 2.0-2.5: good for zoomed close-ups
      * @return Path with smooth parabola curve
      */
-    public static Path parabola(PVector focus, float directrix, int min, int max, float power) {
+    public static Path parabola(PVector focus, float directrix, float min, float max, float power) {
         Path p = new Path();
-
+        if (min > max) {
+            float tmp = min;
+            min = max;
+            max = tmp;
+        }
         // Reasonable y-bounds for clipping (prevent extreme off-screen points)
         float maxReasonableY = 10000f;
         float minReasonableY = -10000f;
@@ -85,13 +89,20 @@ public class Path {
 
         // Collect left side points (will be reversed for monotonic x-ordering)
         java.util.List<PVector> leftPoints = new ArrayList<>();
-        int leftSamples = (int) (numSamples * leftSpan / (leftSpan + rightSpan));
+        int leftSamples = 0;
+        if (max - min < 0.01) {
+            leftSamples = 1;
+        } else {
+            leftSamples = (int) (numSamples * leftSpan / (leftSpan + rightSpan));
+        }
 
         for (int i = 1; i <= leftSamples; i++) { // Start at i=1 to avoid duplicate at vertex
             float t = i / (float) leftSamples; // 0..1
             float shaped = (float) Math.pow(t, power);
             float x = focusX - shaped * leftSpan;
             float y = parabolaY(focus, directrix, x);
+            // safety check
+            if (!Float.isFinite(y)) break;
 
             if (y < minReasonableY || y > maxReasonableY) {
                 break;

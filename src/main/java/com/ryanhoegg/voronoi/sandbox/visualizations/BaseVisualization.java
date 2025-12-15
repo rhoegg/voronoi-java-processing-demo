@@ -1,5 +1,6 @@
 package com.ryanhoegg.voronoi.sandbox.visualizations;
 
+import com.ryanhoegg.voronoi.core.FortuneContext;
 import com.ryanhoegg.voronoi.core.geometry.Geometry2D;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.Path;
@@ -8,6 +9,7 @@ import com.ryanhoegg.voronoi.sandbox.visualizations.theme.ThemeStyle;
 import processing.core.PApplet;
 import processing.core.PVector;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static processing.core.PConstants.CLOSE;
@@ -125,34 +127,92 @@ public abstract class BaseVisualization implements Visualization {
         return 1.0f; // Default: no zoom
     }
 
-    /**
-     * Draw a parabola for a site with theme-specific styling.
-     * Uses default power=1.0 for uniform sampling (suitable for normal zoom levels).
-     */
+    protected PVector currentFocus() {
+        return new PVector(app.width / 2f, app.height / 2f);
+    }
+
+    protected float screenToWorldX(float sx) {
+        float zoom = currentZoom();
+        float screenCenterX = app.width / 2f;
+        float focusX = currentFocus().x;
+        return (sx - screenCenterX) / zoom + focusX;
+    }
+
     protected void drawParabolaForSite(PVector site, float directrixY, boolean highlight) {
         Path path = Path.parabola(site, directrixY, 0, app.width);
         currentStyle().drawParabola(app, path, highlight, site, currentZoom());
     }
 
-    /**
-     * Draw a parabola for a site with custom power-spaced sampling.
-     * Higher power (2.0-2.5) concentrates points near vertex for smoother close-ups.
-     *
-     * @param site The focus site
-     * @param directrixY The directrix y-coordinate
-     * @param highlight Whether to highlight this parabola
-     * @param power Sampling density control (1.0 = uniform, 2.5 = concentrated near vertex)
-     */
     protected void drawParabolaForSite(PVector site, float directrixY, boolean highlight, float power) {
-        Path path = Path.parabola(site, directrixY, 0, app.width, power);
+        drawParabolaForSite(site, directrixY, highlight, power, 0f, app.width);
+    }
+
+    protected void drawParabolaForSite(PVector site, float directrixY, boolean highlight, float power, float min, float max) {
+        Path path = Path.parabola(site, directrixY, min, max, power);
         currentStyle().drawParabola(app, path, highlight, site, currentZoom());
     }
 
+    protected List<ArcPath> computeBeachLineSegments(FortuneContext fortune, float sweepLinePosition) {
+        List<ArcPath> segments = new ArrayList<>();
+
+        FortuneContext.BeachArc head = fortune.beachLine();
+        if (null == head) return segments;
+
+        float directrix = sweepLinePosition;
+
+        float zoom = currentZoom();
+        float worldLeft = screenToWorldX(0);
+        float worldRight = screenToWorldX(app.width);
+        float worldStep = 2f / zoom;
+
+        FortuneContext.BeachArc currentArc = null;
+        Path currentSegment = null;
+
+        for (float x = worldLeft; x < worldRight; x += worldStep) {
+            // lowest position (highest y) arc at this x
+            FortuneContext.BeachArc best = null;
+            double bestY = Double.NEGATIVE_INFINITY;
+
+            for (FortuneContext.BeachArc arc = head; arc != null; arc = arc.next) {
+                double y = Geometry2D.parabolaY(arc.site, x, directrix);
+                if (Double.isNaN(y)) continue;
+
+                if (y > bestY) {
+                    bestY = y;
+                    best = arc;
+                }
+            }
+
+            if (null == best) {
+                // no arcs here, end the the open segment
+                if (null != currentArc && null != currentSegment) {
+                    segments.add(new ArcPath(currentArc.site, currentSegment));
+                    currentArc = null;
+                    currentSegment = null;
+                }
+                continue;
+            }
+            if (best != currentArc) { // new segment
+                if (null != currentArc && null != currentSegment) {
+                    segments.add(new ArcPath(currentArc.site, currentSegment));
+                }
+                currentArc = best;
+                currentSegment = new Path();
+            }
+
+            currentSegment.add(new PVector(x, (float) bestY));
+        }
+        // flush last segment
+        if (currentArc != null && currentSegment != null) {
+            segments.add(new ArcPath(currentArc.site, currentSegment));
+        }
+
+        return segments;
+    }
+
+
     // ==================== COMMON UTILITIES ====================
 
-    /**
-     * Draw a closed path.
-     */
     protected void draw(Path p) {
         app.beginShape();
         for (PVector point: p.getPoints()) {
@@ -183,5 +243,12 @@ public abstract class BaseVisualization implements Visualization {
                 new Point(p.x, p.y),
                 Float.valueOf(x).doubleValue(),
                 Float.valueOf(directrixY).doubleValue())).floatValue();
+    }
+
+    protected boolean locationEquals(PVector v, Point p) {
+        final float EPSILON = 0.0001f;
+        float px = Double.valueOf(p.x()).floatValue();
+        float py = Double.valueOf(p.y()).floatValue();
+        return PApplet.abs(px - v.x) < EPSILON && PApplet.abs(py - v.y) < EPSILON;
     }
 }

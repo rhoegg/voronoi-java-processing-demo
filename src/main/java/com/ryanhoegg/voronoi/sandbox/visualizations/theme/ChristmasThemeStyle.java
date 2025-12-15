@@ -348,6 +348,64 @@ public class ChristmasThemeStyle implements ThemeStyle {
 
     // ==================== BEACH LINE ====================
 
+
+    @Override
+    public void drawBeachArc(PApplet app, Path path, PVector site, boolean highlight, float zoom, float alpha) {
+        app.pushStyle();
+
+        float a = PApplet.constrain(alpha, 0f, 1f);
+        if (a <= 0f) {
+            app.popStyle();
+            return;
+        }
+
+        float safeZoom = (Float.isFinite(zoom) && zoom > 0f) ? zoom : 1f;
+
+        // Use the theme's beach-line color policy (single source of truth)
+        int baseColor = beachLineColorForSite(app, site.x, site.y);
+        int r = (baseColor >> 16) & 0xFF;
+        int g = (baseColor >> 8) & 0xFF;
+        int b = baseColor & 0xFF;
+
+        float normalBaseWeight = 1.3f;
+        float highlightedBaseWeight = 2.6f;
+
+        float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
+        float w = Math.max(0.1f, baseWeight / safeZoom);
+
+        app.noFill();
+        app.strokeCap(PApplet.ROUND);
+        app.strokeJoin(PApplet.ROUND);
+
+        if (highlight) {
+            float glowW = Math.max(0.1f, w + (2.2f / safeZoom));
+            app.stroke(app.color(r, g, b, 55f * a));
+            app.strokeWeight(glowW);
+            drawCurveVertexPath(app, path);
+        }
+
+        float mainAlpha = (highlight ? 210f : 150f) * a;
+        app.stroke(app.color(r, g, b, mainAlpha));
+        app.strokeWeight(w);
+        drawCurveVertexPath(app, path);
+
+        if (highlight) {
+            int shineR = 255;
+            int shineG = 240;
+            int shineB = 210;
+            shineR = (int) (shineR * 0.7f + r * 0.3f);
+            shineG = (int) (shineG * 0.7f + g * 0.3f);
+            shineB = (int) (shineB * 0.7f + b * 0.3f);
+
+            float shineW = Math.max(0.1f, w * 0.55f);
+            app.stroke(app.color(shineR, shineG, shineB, 85f * a));
+            app.strokeWeight(shineW);
+            drawCurveVertexPath(app, path);
+        }
+
+        app.popStyle();
+    }
+
     @Override
     public int beachLineColorForSite(PApplet app, double x, double y) {
         // Get base ornament color for this site

@@ -1,5 +1,8 @@
 package com.ryanhoegg.voronoi.core.geometry;
 
+import java.util.function.DoublePredicate;
+import java.util.function.DoubleUnaryOperator;
+
 public final class Geometry2D {
     private Geometry2D() {}
 
@@ -54,5 +57,115 @@ public final class Geometry2D {
                 + c2 * (bx - ax)) / d;
 
         return new Point(ux, uy);
+    }
+
+    public static double parabolaIntersectionX(Point focus1, Point focus2, double directrixY) {
+        // Ensure consistent “left arc then right arc” behavior
+        if (focus1.x() > focus2.x()) {
+            Point tmp = focus1;
+            focus1 = focus2;
+            focus2 = tmp;
+        }
+
+        final double fx1 = focus1.x(), fy1 = focus1.y();
+        final double fx2 = focus2.x(), fy2 = focus2.y();
+        final double d = directrixY;
+
+        // In Fortune, foci should be above the sweep/directrix (fy <= d).
+        // If a focus is on/too close to the directrix, the parabola becomes numerically nasty.
+        final double EPS = 1e-9;
+        double den1 = (fy1 - d);
+        double den2 = (fy2 - d);
+
+        if (Math.abs(den1) < EPS && Math.abs(den2) < EPS) {
+            // Both degenerate; best effort fallback
+            return 0.5 * (fx1 + fx2);
+        }
+        if (Math.abs(den1) < EPS) {
+            // focus1 essentially on directrix: treat breakpoint as focus1.x-ish
+            return fx1;
+        }
+        if (Math.abs(den2) < EPS) {
+            return fx2;
+        }
+
+        // Parabola y(x) for focus (fx,fy) and directrix y=d:
+        // y = ((x-fx)^2 + fy^2 - d^2) / (2*(fy-d))
+        // Expand into quadratic: A x^2 + B x + C
+        double A1 = 1.0 / (2.0 * den1);
+        double B1 = -fx1 / den1;
+        double C1 = (fx1*fx1 + fy1*fy1 - d*d) / (2.0 * den1);
+
+        double A2 = 1.0 / (2.0 * den2);
+        double B2 = -fx2 / den2;
+        double C2 = (fx2*fx2 + fy2*fy2 - d*d) / (2.0 * den2);
+
+        // Solve (A1-A2)x^2 + (B1-B2)x + (C1-C2) = 0
+        double a = (A1 - A2);
+        double b = (B1 - B2);
+        double c = (C1 - C2);
+
+        // If same fy (or effectively same), a ~ 0 => linear.
+        if (Math.abs(a) < 1e-12) {
+            if (Math.abs(b) < 1e-12) {
+                // Parabolas nearly identical in this regime; fallback to midpoint
+                return 0.5 * (fx1 + fx2);
+            }
+            return -c / b;
+        }
+
+        double disc = b*b - 4.0*a*c;
+        if (disc < 0.0) {
+            // No real intersection (can happen with numeric issues); fallback
+            return 0.5 * (fx1 + fx2);
+        }
+
+        double sqrt = Math.sqrt(disc);
+        double r1 = (-b - sqrt) / (2.0*a);
+        double r2 = (-b + sqrt) / (2.0*a);
+
+        // If only one is finite, use it
+        boolean r1ok = Double.isFinite(r1);
+        boolean r2ok = Double.isFinite(r2);
+        if (!r1ok && !r2ok) return 0.5 * (fx1 + fx2);
+        if (r1ok && !r2ok) return r1;
+        if (!r1ok && r2ok) return r2;
+
+        // Choose the correct breakpoint for "focus1 arc to the left, focus2 arc to the right"
+        // by probing which parabola is lower just left/right of the candidate root.
+        // This avoids the “pick the +sqrt root” trap.
+        double span = Math.max(1.0, Math.abs(fx2 - fx1));
+        double dx = 1e-4 * span; // tiny in world units; tune if needed
+
+        DoubleUnaryOperator y1 = (x) ->
+                ((x - fx1)*(x - fx1) + fy1*fy1 - d*d) / (2.0*(fy1 - d));
+        DoubleUnaryOperator y2 = (x) ->
+                ((x - fx2)*(x - fx2) + fy2*fy2 - d*d) / (2.0*(fy2 - d));
+
+        // Predicate: left side prefers 1, right side prefers 2 (i.e., boundary between arcs)
+        DoublePredicate isLeftToRightBoundary = (r) -> {
+            double xl = r - dx;
+            double xr = r + dx;
+            double dl = y1.applyAsDouble(xl) - y2.applyAsDouble(xl); // <0 => 1 lower
+            double dr = y1.applyAsDouble(xr) - y2.applyAsDouble(xr); // >0 => 2 lower
+            return (dl <= 0.0 && dr >= 0.0);
+        };
+
+        boolean r1Boundary = isLeftToRightBoundary.test(r1);
+        boolean r2Boundary = isLeftToRightBoundary.test(r2);
+
+        if (r1Boundary && !r2Boundary) return r1;
+        if (r2Boundary && !r1Boundary) return r2;
+
+        // If both/neither match (rare), pick the root that lies between the foci if possible.
+        double lo = fx1, hi = fx2;
+        boolean r1Between = (r1 >= lo && r1 <= hi);
+        boolean r2Between = (r2 >= lo && r2 <= hi);
+        if (r1Between && !r2Between) return r1;
+        if (r2Between && !r1Between) return r2;
+
+        // Final fallback: closest to midpoint
+        double mid = 0.5 * (fx1 + fx2);
+        return (Math.abs(r1 - mid) < Math.abs(r2 - mid)) ? r1 : r2;
     }
 }

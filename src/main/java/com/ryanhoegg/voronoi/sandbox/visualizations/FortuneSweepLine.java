@@ -68,7 +68,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
         }
 
         if (stage == Stage.BEACH_LINE) {
-            this.beachLineSegments = computeBeachLineSegments();
+            this.beachLineSegments = computeBeachLineSegments(fortune, sweepLinePosition);
         }
     }
 
@@ -121,7 +121,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
 
     private void drawBeachLineSites() {
         drawColoredSites(this.beachLineSegments.stream().map(seg -> {
-            return new PVector( (float) seg.site.x(), (float) seg.site.y());
+            return new PVector( (float) seg.site().x(), (float) seg.site().y());
         }).toList());
     }
 
@@ -159,7 +159,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
             drawParabolaForSite(exampleSite, sweepLinePosition, true);
 
             // Draw vertical guide line from site to parabola vertex
-            float vertexY = (float) parabolaY(new Point(exampleSite.x, exampleSite.y), exampleSite.x, sweepLinePosition);
+            float vertexY = parabolaY(exampleSite, exampleSite.x, sweepLinePosition);
             if (!Float.isNaN(vertexY)) {
                 app.stroke(ThemeEngine.guideLineColor(app, theme));
                 app.strokeWeight(1.0f);
@@ -205,6 +205,7 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
 
     private void drawBeachLine() {
         if (this.beachLineSegments.isEmpty()) return;
+        app.pushStyle();
 
         app.noFill();
         app.strokeWeight(ThemeEngine.BEACH_LINE_STROKE_WEIGHT);
@@ -214,78 +215,12 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
             int c = currentStyle().beachLineColorForSite(app, seg.site().x(), seg.site().y());
             app.stroke(c);
             app.beginShape();
-            for (PVector p : seg.path.getPoints()) {
+            for (PVector p : seg.path().getPoints()) {
                 app.vertex(p.x, p.y);
             }
             app.endShape();
         }
-    }
-
-    private List<ArcPath> computeBeachLineSegments() {
-        List<ArcPath> segments =  new ArrayList<>();
-
-        FortuneContext.BeachArc head = fortune.beachLine();
-        if (null == head) return segments;
-
-        float directrix = sweepLinePosition;
-        FortuneContext.BeachArc currentArc = null;
-        Path currentSegment = null;
-
-        for (int x = 0; x < app.width; x += 2) {
-            // lowest position (highest y) arc at this x
-            FortuneContext.BeachArc best = null;
-            double bestY = Double.NEGATIVE_INFINITY;
-
-            for (FortuneContext.BeachArc arc = head; arc != null; arc = arc.next) {
-                double y = parabolaY(arc.site, x, directrix);
-                if (Double.isNaN(y)) continue;
-
-                if (y > bestY) {
-                    bestY = y;
-                    best = arc;
-                }
-            }
-
-            if (null == best) {
-                // no arcs here, end the the open segment
-                if (null != currentArc && null != currentSegment) {
-                    segments.add(new ArcPath(currentArc.site, currentSegment));
-                    currentArc = null;
-                    currentSegment = null;
-                }
-                continue;
-            }
-            if (best != currentArc) { // new segment
-                if (null != currentArc && null != currentSegment) {
-                    segments.add(new ArcPath(currentArc.site, currentSegment));
-                }
-                currentArc = best;
-                currentSegment = new Path();
-            }
-
-            currentSegment.add(new PVector(x, (float) bestY));
-        }
-        // flush last segment
-        if (currentArc != null && currentSegment != null) {
-            segments.add(new ArcPath(currentArc.site, currentSegment));
-        }
-
-        return segments;
-    }
-
-    private double parabolaY(Point focus, double x, double directrixY) {
-        double fx = focus.x();
-        double fy = focus.y();
-        double d  = directrixY;
-
-        double denom = 2.0 * (fy - d);
-        if (Math.abs(denom) < 1e-6) {
-            // Degenerate case: sweep line basically at the focus.
-            // we'll skip NaNs.
-            return Double.NaN;
-        }
-
-        return ((x - fx) * (x - fx) + fy * fy - d * d) / denom;
+        app.popStyle();
     }
 
     private void changeStage(int delta) {
@@ -299,6 +234,4 @@ public class FortuneSweepLine extends BaseVisualization implements Visualization
         PARABOLAS,
         BEACH_LINE
     }
-
-    private record ArcPath(Point site, Path path) {}
 }

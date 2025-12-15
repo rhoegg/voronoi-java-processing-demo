@@ -299,6 +299,12 @@ public class ClassicThemeStyle implements ThemeStyle {
 
     // ==================== BEACH LINE ====================
 
+
+    @Override
+    public void drawBeachArc(PApplet app, Path path, PVector site, boolean highlight, float zoom, float alpha) {
+
+    }
+
     @Override
     public int beachLineColorForSite(PApplet app, double x, double y) {
         // Get base multi-hue color for this site
