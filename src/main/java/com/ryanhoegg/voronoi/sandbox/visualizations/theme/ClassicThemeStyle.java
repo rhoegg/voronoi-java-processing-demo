@@ -317,4 +317,14 @@ public class ClassicThemeStyle implements ThemeStyle {
     public void drawWitness(PApplet app, PVector pos, float alpha) {
 
     }
+
+    @Override
+    public void drawWitnessSegments(PApplet app, PVector witness, PVector site, float directrixY, float alpha) {
+
+    }
+
+    @Override
+    public void drawWitnessDistanceHelpers(PApplet app, PVector witness, PVector site, float directrixY, float alpha) {
+
+    }
 }

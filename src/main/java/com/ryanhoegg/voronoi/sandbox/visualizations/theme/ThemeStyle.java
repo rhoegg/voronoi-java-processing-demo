@@ -109,4 +109,6 @@ public interface ThemeStyle {
 
     // ==================== WITNESS ====================
     void drawWitness(PApplet app, PVector pos, float alpha);
+    void drawWitnessSegments(PApplet app, PVector witness, PVector site, float directrixY, float alpha);
+    void drawWitnessDistanceHelpers(PApplet app, PVector witness, PVector site, float directrixY, float alpha);
 }

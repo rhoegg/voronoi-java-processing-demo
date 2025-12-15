@@ -176,10 +176,8 @@ public class VoronoiDemo extends PApplet {
         float clusterCenterY = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.y)).floatValue();
         float adjustFirstSiteY = 0f;
         if (cluster.get(0).y < clusterCenterY - 0.15f * height) {
-            System.out.println("lowering first site y by " + (clusterCenterY - 0.15f * height - cluster.get(0).y));
             adjustFirstSiteY = clusterCenterY - 0.15f * height - cluster.get(0).y;
         } else if (cluster.get(0).y > clusterCenterY - 0.142f * height) {
-            System.out.println("raising first site y by " + -1 * (clusterCenterY - 0.142f * height - cluster.get(0).y));
             adjustFirstSiteY = clusterCenterY - 0.142f * height - cluster.get(0).y;
         }
         if (adjustFirstSiteY != 0f) {
@@ -197,7 +195,6 @@ public class VoronoiDemo extends PApplet {
         float clusterCenterY = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.y)).floatValue();
         float adjustSiteY = 0f;
         if (cluster.get(1).y < clusterCenterY - 0.135f * height) {
-            System.out.println("lowering second site y by " + (clusterCenterY - 0.135f * height - cluster.get(1).y));
             adjustSiteY = clusterCenterY - 0.135f * height - cluster.get(1).y;
         }
         if (adjustSiteY != 0f) {

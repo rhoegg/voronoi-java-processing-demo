@@ -25,14 +25,14 @@ public class ChristmasThemeStyle implements ThemeStyle {
 
     // ==================== SITE CONSTANTS ====================
     private static final float SITE_SIZE = 6.5f;
-    private static final float HIGHLIGHTED_SITE_SIZE = 15f;
+    private static final float HIGHLIGHTED_SITE_SIZE = 12f;
 
     // Ornament palette
     private static final int[][] ORNAMENT_PALETTE = {
-        {210, 70, 70},      // Warm red
+        {210, 55, 60},      // Warm red
+        {35, 120, 80},    // Pine Green
         {235, 190, 90},     // Gold
-        {150, 230, 190},    // Soft mint
-        {240, 235, 220}     // Warm off-white
+        {55, 95, 200}     // Cobalt Blue
     };
 
     // ==================== SWEEP LINE CONSTANTS ====================
@@ -69,6 +69,7 @@ public class ChristmasThemeStyle implements ThemeStyle {
 
     @Override
     public void drawBackground(PApplet app) {
+        app.pushStyle();
         int topColor = backgroundTop(app);
         int bottomColor = backgroundBottom(app);
 
@@ -79,6 +80,7 @@ public class ChristmasThemeStyle implements ThemeStyle {
             app.stroke(c);
             app.line(0, y, app.width, y);
         }
+        app.popStyle();
     }
 
     // ==================== SITES ====================
@@ -176,6 +178,7 @@ public class ChristmasThemeStyle implements ThemeStyle {
      * Positioned at top-left to suggest overhead/angled light.
      */
     private void drawSpecularHighlight(PApplet app, float cx, float cy, float siteSize) {
+        app.pushStyle();
         app.noStroke();
 
         // Highlight offset: top-left at ~30% of radius
@@ -199,6 +202,7 @@ public class ChristmasThemeStyle implements ThemeStyle {
         float sparkleSize = siteSize * 0.10f;
         app.fill(app.color(255, 255, 245, 120));
         app.ellipse(hx - siteSize * 0.05f, hy - siteSize * 0.05f, sparkleSize, sparkleSize);
+        app.popStyle();
     }
 
     /**
@@ -206,7 +210,7 @@ public class ChristmasThemeStyle implements ThemeStyle {
      */
     private int getOrnamentColor(PApplet app, double x, double y) {
         int h = Double.hashCode(x) * 31 + Double.hashCode(y);
-        int paletteIndex = Math.abs(h) % ORNAMENT_PALETTE.length;
+        int paletteIndex = Math.abs(h) % (ORNAMENT_PALETTE.length + 2) % ORNAMENT_PALETTE.length; // bias the first two
         int[] rgb = ORNAMENT_PALETTE[paletteIndex];
         return app.color(rgb[0], rgb[1], rgb[2], 230);
     }
@@ -224,6 +228,7 @@ public class ChristmasThemeStyle implements ThemeStyle {
 
     @Override
     public void drawSweepLine(PApplet app, float y, float time) {
+        app.pushStyle();
         // Layer 1: Glow/halo (drawn first as background)
         app.stroke(app.color(SWEEP_GLOW_R, SWEEP_GLOW_G, SWEEP_GLOW_B, SWEEP_GLOW_ALPHA));
         app.strokeWeight(SWEEP_GLOW_WEIGHT);
@@ -233,14 +238,17 @@ public class ChristmasThemeStyle implements ThemeStyle {
         app.stroke(app.color(SWEEP_CORE_R, SWEEP_CORE_G, SWEEP_CORE_B, SWEEP_CORE_ALPHA));
         app.strokeWeight(SWEEP_CORE_WEIGHT);
         app.line(0, y, app.width, y);
+        app.popStyle();
     }
 
     @Override
     public void drawUnseenArea(PApplet app, float sweepY) {
+        app.pushStyle();
         // Dark blue-green overlay for unseen area below sweep line
         app.noStroke();
         app.fill(app.color(10, 35, 45, 170));
         app.rect(0, sweepY, app.width, app.height - sweepY);
+        app.popStyle();
     }
 
     // ==================== PARABOLAS ====================
@@ -287,6 +295,26 @@ public class ChristmasThemeStyle implements ThemeStyle {
         app.strokeCap(PApplet.ROUND);
         app.strokeJoin(PApplet.ROUND);
         drawCurveVertexPath(app, path);
+
+        // Shine layer for highlighted parabolas
+        if (highlight) {
+            // Warm glow color (golden off-white, not pure ornament color)
+            int shineR = 255;
+            int shineG = 240;
+            int shineB = 210;
+
+            // Blend ornament color into glow (30% ornament tint)
+            shineR = (int) (shineR * 0.7f + r * 0.3f);
+            shineG = (int) (shineG * 0.7f + g * 0.3f);
+            shineB = (int) (shineB * 0.7f + b * 0.3f);
+            app.noFill();
+            float shineWeight = compensatedWeight / 2.2f;
+            app.stroke(app.color(shineR, shineG, shineB, 90)); // Alpha ~60
+            app.strokeWeight(shineWeight);
+            app.strokeCap(PApplet.ROUND);
+            app.strokeJoin(PApplet.ROUND);
+            drawCurveVertexPath(app, path);
+        }
 
         app.popStyle();
     }
@@ -336,12 +364,18 @@ public class ChristmasThemeStyle implements ThemeStyle {
 
     @Override
     public void drawWitness(PApplet app, PVector pos, float alpha) {
-        final float r = 250;
-        final float g = 240;
-        final float b = 210;
-        int baseColor = app.color(250, 240, 210, alpha * 255); // warm white
+        // warm white
+//        final float r = 250;
+//        final float g = 240;
+//        final float b = 210;
+        // icy white
+        final float r = 235;
+        final float g = 245;
+        final float b = 255;
+        int baseColor = app.color(r, g, b, alpha * 255); // warm white
 
         app.pushStyle();
+        app.noStroke();
         if (alpha > 0.3f) {
             app.fill(app.color(r, g, b, alpha * 255 / 8));
             app.ellipse(pos.x, pos.y, 11f, 11f);
@@ -352,6 +386,91 @@ public class ChristmasThemeStyle implements ThemeStyle {
         app.ellipse(pos.x, pos.y, 7f, 7f);
         app.fill(baseColor);
         app.ellipse(pos.x, pos.y, 5f, 5f);
+
+        drawSpecularHighlight(app, pos.x, pos.y, 5f);
+        app.popStyle();
+    }
+
+    @Override
+    public void drawWitnessSegments(PApplet app, PVector witness, PVector site, float directrixY, float alpha) {
+        // warm white
+        final float r = 250;
+        final float g = 240;
+        final float b = 210;
+        app.pushStyle();
+        // witness to site
+        app.strokeWeight(3.2f / 3f);
+        app.stroke(app.color(r, g, b, 90f * alpha));
+        app.line(witness.x, witness.y, site.x, site.y);
+        app.strokeWeight(1.6f / 3f);
+        app.stroke(app.color(r, g, b, 225f * alpha));
+        app.line(witness.x, witness.y, site.x, site.y);
+        // witness to directrix
+        app.strokeWeight(2.2f / 3f);
+        app.stroke(app.color(r, g, b, 90f * alpha));
+        app.line(witness.x, witness.y, witness.x, directrixY);
+        app.strokeWeight(1.1f / 3f);
+        app.stroke(app.color(r, g, b, 225f * alpha));
+        app.line(witness.x, witness.y, witness.x, directrixY);
+
+        app.popStyle();
+    }
+
+    @Override
+    public void drawWitnessDistanceHelpers(PApplet app, PVector witness, PVector site, float directrixY, float alpha) {
+        app.pushStyle();
+        // warm white
+        final float r = 250;
+        final float g = 240;
+        final float b = 210;
+        app.noStroke();
+        float shadow = 0.2f;
+        float shadowDisplacement = 1.1f;
+        float radius = 5f / 3f;
+        app.fill(app.color(shadow * r, shadow * g, shadow * b, 65 * alpha));
+        app.ellipse(witness.x + (shadowDisplacement/3), directrixY + (shadowDisplacement/3), radius, radius);
+        app.ellipse(site.x + (shadowDisplacement/3), site.y + (shadowDisplacement/3), radius, radius);
+        radius *= 1.35f;
+        app.stroke(app.color(shadow * r, shadow * g, shadow * b, 25 * alpha));
+        app.fill(app.color(shadow * r, shadow * g, shadow * b, 45 * alpha));
+        app.ellipse(witness.x + (shadowDisplacement/3), directrixY + (shadowDisplacement/3), radius, radius);
+        app.ellipse(site.x + (shadowDisplacement/3), site.y + (shadowDisplacement/3), radius, radius);
+        radius = 4f / 3f;
+        app.noStroke();
+        app.fill(app.color(r, g, b, 190 * alpha));
+        app.ellipse(witness.x, directrixY, radius, radius);
+        app.ellipse(site.x, site.y, radius, radius);
+
+        drawWitnessSegmentTickmarks(app, witness, site, directrixY, alpha);
+        app.popStyle();
+    }
+
+    private void drawWitnessSegmentTickmarks(PApplet app, PVector witness, PVector site, float directrixY, float alpha) {
+        PVector siteMidpoint = PVector.add(witness, site).mult(0.5f);
+        PVector direction = PVector.sub(site, witness).normalize();
+        PVector perpendicular = direction.copy().rotate(app.HALF_PI);
+        PVector tick1 = PVector.add(siteMidpoint, direction.copy().mult(0.9f));
+        PVector tick2 = PVector.add(siteMidpoint, direction.copy().mult(-0.9f));
+        PVector sweepMidpoint = PVector.add(witness, new PVector(witness.x, directrixY)).mult(0.5f);
+        PVector tick3 = new PVector(witness.x, sweepMidpoint.y + 0.9f);
+        PVector tick4 = new PVector(witness.x, sweepMidpoint.y - 0.9f);
+
+        PVector tick1A = PVector.add(tick1, perpendicular.copy().mult(1.3f));
+        PVector tick1B = PVector.add(tick1, perpendicular.copy().mult(-1.3f));
+        PVector tick2A = PVector.add(tick2, perpendicular.copy().mult(1.3f));
+        PVector tick2B = PVector.add(tick2, perpendicular.copy().mult(-1.3f));
+        PVector tick3A = new PVector(tick3.x - 1.3f, tick3.y);
+        PVector tick3B = new PVector(tick3.x + 1.3f, tick3.y);
+        PVector tick4A = new PVector(tick4.x - 1.3f, tick4.y);
+        PVector tick4B = new PVector(tick4.x + 1.3f, tick4.y);
+
+        app.pushStyle();
+        app.stroke(250, 240, 210, 100 * alpha);
+        app.strokeWeight(0.5f);
+        app.line(tick1A.x, tick1A.y, tick1B.x, tick1B.y);
+        app.line(tick2A.x, tick2A.y, tick2B.x, tick2B.y);
+        app.line(tick3A.x, tick3A.y, tick3B.x, tick3B.y);
+        app.line(tick4A.x, tick4A.y, tick4B.x, tick4B.y);
         app.popStyle();
     }
 }

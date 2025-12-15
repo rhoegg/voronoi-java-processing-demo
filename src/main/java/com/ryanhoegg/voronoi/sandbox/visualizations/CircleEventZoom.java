@@ -33,7 +33,10 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
 
     private PVector witness = new PVector(0f, 0f);
     private float witnessA;
+    private float witnessEndpointX1, witnessEndpointX2;
     private static final float WITNESS_FADE_TIME = 0.4f;
+    private static final float WITNESS_PERIOD = 10f;
+    private static final float WITNESS_SWING = 47f;
 
     private final float sweepSettleDuration = 2.6f;
 
@@ -103,6 +106,10 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
             case SETTLE_BELOW_FIRST_SITE:
                 scene = Scene.EQUAL_DISTANCE_REVEAL;
                 sceneT = 0f;
+                float firstSiteOffset = (app.width / 2 - firstSite.x);
+                float oscillateCenterX = firstSite.x + (0.05f * firstSiteOffset);
+                witnessEndpointX1 = oscillateCenterX + ((firstSiteOffset > 0) ? -WITNESS_SWING : WITNESS_SWING);
+                witnessEndpointX2 = oscillateCenterX + ((firstSiteOffset > 0) ? WITNESS_SWING : -WITNESS_SWING);
                 break;
         }
     }
@@ -150,6 +157,20 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                     }
                 }
                 break;
+            case EQUAL_DISTANCE_REVEAL:
+                witnessA = 1f;
+                if (sceneT > 3f) {
+                    if (sceneT < WITNESS_PERIOD / 2 + 3f) {
+                        witness.x = PApplet.lerp(firstSite.x, witnessEndpointX1, easeInOutCubic((sceneT - 3f) / (WITNESS_PERIOD / 2)));
+                    } else {
+                        float oscillateStart = 3f + WITNESS_PERIOD / 2;
+                        float p = ((sceneT - oscillateStart) % WITNESS_PERIOD) / WITNESS_PERIOD;
+                        float s = (p < 0.5f) ? (2 * p) : (2 - 2 * p);
+                        witness.x = PApplet.lerp(witnessEndpointX1, witnessEndpointX2, easeInOutCubic(s));
+                    }
+                    witness.y = parabolaY(firstSite, witness.x, sweepY);
+                }
+                break;
         }
     }
 
@@ -163,6 +184,7 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
             case INTRO_ZOOM -> drawIntroZoomScene();
             case APPROACH_FIRST_SITE -> drawApproachFirstSiteScene();
             case SETTLE_BELOW_FIRST_SITE -> drawSettleBelowFirstSiteScene();
+            case EQUAL_DISTANCE_REVEAL -> drawEqualDistanceReveal();
         }
 
         app.popMatrix();
@@ -183,25 +205,45 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         drawClusterSites();
         drawSweepLine(sweepY);
         if (sweepY > firstSite.y) drawParabolaForSite(firstSite, sweepY, true, 2.5f);
-        drawUnseenArea(sweepY);
         if (witnessA > 0f) {
             currentStyle().drawWitness(app, witness, witnessA);
         }
+        drawUnseenArea(sweepY);
+    }
+
+    private void drawEqualDistanceReveal() {
+        drawClusterSites();
+        drawSweepLine(sweepY);
+        drawParabolaForSite(firstSite, sweepY, true, 2.5f);
+        currentStyle().drawWitness(app, witness, witnessA);
+        drawWitnessDistanceHelpers();
+        drawWitnessSegments();
+        drawUnseenArea(sweepY);
     }
 
     private void drawClusterSites() {
         // Draw all sites using centralized drawing (theme handles pulsing)
         sites.forEach(s -> {
             boolean isFirstSite = s.equals(firstSite);
-            // In FIRST_SITE_EVENT scene, highlight the first site (theme will pulse it)
             boolean shouldHighlight = false;
             switch(scene) {
                 case APPROACH_FIRST_SITE:
                 case SETTLE_BELOW_FIRST_SITE:
+                case EQUAL_DISTANCE_REVEAL:
                     shouldHighlight = isFirstSite;
             }
             drawSite(s, shouldHighlight);
         });
+    }
+
+    private void drawWitnessSegments() {
+        float fade = (sceneT < 0.4f) ? sceneT / 0.4f : 1f;
+        currentStyle().drawWitnessSegments(app, witness, firstSite, sweepY, fade);
+    }
+
+    private void drawWitnessDistanceHelpers() {
+        float fade = (sceneT < 2.4f) ? sceneT / 2.4f : 1f;
+        currentStyle().drawWitnessDistanceHelpers(app, witness, firstSite, sweepY, easeInOutCubic(fade));
     }
 
     @Override
@@ -228,5 +270,9 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
         t = PApplet.constrain(t, 0f, 1f);
         float inv = 1f - t;
         return 1f - inv * inv * inv;
+    }
+
+    private float easeInOutCubic(float t) {
+        return (t < 0.5) ? 4 * t * t * t : 1 - Double.valueOf(Math.pow(-2 * t + 2, 3) / 2).floatValue();
     }
 }
