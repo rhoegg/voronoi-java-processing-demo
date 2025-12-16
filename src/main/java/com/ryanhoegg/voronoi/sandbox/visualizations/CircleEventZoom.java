@@ -1,7 +1,9 @@
 package com.ryanhoegg.voronoi.sandbox.visualizations;
 
+import com.ryanhoegg.voronoi.core.ChosenCircleEvent;
 import com.ryanhoegg.voronoi.core.FortuneContext;
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
+import com.ryanhoegg.voronoi.core.geometry.Geometry2D;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.Visualization;
 import org.jetbrains.annotations.NotNull;
@@ -50,6 +52,7 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private float beachLineA = 0f;
 
     // circle event
+    private final ChosenCircleEvent chosenEvent; // The event selected during cluster generation
     FortuneContext.CircleEvent circleEvent;
     private PVector circleSite2, circleSite3;
 
@@ -64,8 +67,9 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
     private boolean fadingOut = false;
     private float fadeT = 0f;
 
-    public CircleEventZoom(PApplet app, List<PVector> clusterSites, Theme theme) {
+    public CircleEventZoom(PApplet app, List<PVector> clusterSites, ChosenCircleEvent chosenEvent, Theme theme) {
         super(app, clusterSites, theme);
+        this.chosenEvent = chosenEvent;
         fortunePlan = initFortune();
         fortuneShow = initFortune();
         worldCenter = computeCenter(clusterSites);
@@ -130,22 +134,17 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
             case EQUAL_DISTANCE_REVEAL:
                 fadingOut = true;
                 fadeT = 0f;
-                while (fortunePlan.step() && circleEvent == null) {
-                    switch (fortunePlan.lastEvent()) {
-                         case FortuneContext.CircleEvent e -> {
-                             Point firstSiteLocation = new Point(firstSite.x, firstSite.y);
-                             if (e.sites().contains(firstSiteLocation)) {
-                                 circleEvent = e;
-                             }
-                         }
-                         case FortuneContext.SiteEvent e -> {}
-                         case null -> {}
-                    }
-                }
+
+                // Match the chosen event in fortunePlan (no reselection!)
+                circleEvent = matchChosenEventInFortune();
+
                 if (null == circleEvent) {
-                    System.out.println("No circle event found!");
+                    System.out.println("[CircleEventZoom] FATAL: Could not match chosen event in Fortune context!");
+                    System.out.printf("  Expected: y=%.2f, sites=%s%n", chosenEvent.yEvent(), chosenEvent.sites());
                     System.exit(1);
                 }
+
+                // Identify the other two sites involved in the circle event
                 if (locationEquals(firstSite, circleEvent.sites().a())) {
                     circleSite2 = findSite(circleEvent.sites().b());
                     circleSite3 = findSite(circleEvent.sites().c());
@@ -157,8 +156,9 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                         circleSite3 = findSite(circleEvent.sites().b());
                     }
                 }
+
                 sweepStartY = sweepY;
-                sweepTargetY = PApplet.max(firstSite.y, circleSite2.y, circleSite3.y) + 13f;
+                sweepTargetY = (float) chosenEvent.previewSweepY(); // Use precomputed preview Y
                 break;
         }
     }
@@ -235,11 +235,9 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                     beachLineA = smoothStep((sceneT - 1.8f) / 0.6f);
                 }
                 // trigger Fortune events as we cross their y
-                boolean done = false;
                 while (true) {
                     Double nextY = fortuneShow.nextEventY();
                     if (null == nextY) {
-                        done = true;
                         break;
                     }
                     if (sweepY >= nextY) {
@@ -365,7 +363,136 @@ public class CircleEventZoom extends BaseVisualization implements Visualization 
                 .orElseThrow();
     }
 
+    private float sweepLineJustBeforeCircleEvent() {
+        final float MIN_DISTANCE_WORLD = 7f;
+        final float EPSILON = 0.001f;
+        final int ITERS = 30;
 
+        float y3 = (float) Math.max(circleEvent.sites().a().y(),
+                Math.max(circleEvent.sites().b().y(), circleEvent.sites().c().y()));
+        float yEvent = (float) circleEvent.y();
+
+        float yMin = y3 + EPSILON;
+        float yMax = yEvent - EPSILON;
+
+        if (!(yMin < yMax)) {
+            return yMin + EPSILON;
+        }
+
+        // Helper: advance a context until its next event would be AFTER sweepY.
+        // This makes ctx.beachLine() consistent with sweepY.
+        java.util.function.BiConsumer<FortuneContext, Float> advanceToY = (ctx, sweepY) -> {
+            while (true) {
+                Double nextY = ctx.nextEventY();
+                if (nextY == null) break;
+                if (nextY <= sweepY) ctx.step();
+                else break;
+            }
+        };
+
+        FortuneContext ctx = initFortune();
+
+        java.util.function.DoublePredicate wideEnough = (double sweepY) -> {
+            advanceToY.accept(ctx, (float) sweepY);
+
+            FortuneContext.BeachArc d = findDoomedArcInCurrentBeachline(ctx, circleEvent.sites());
+            if (d == null || d.prev == null || d.next == null) return false;
+
+            double xL = Geometry2D.parabolaIntersectionX(d.prev.site, d.site, sweepY);
+            double xR = Geometry2D.parabolaIntersectionX(d.site, d.next.site, sweepY);
+            if (!Double.isFinite(xL) || !Double.isFinite(xR)) return false;
+
+            double leftX  = Math.min(xL, xR);
+            double rightX = Math.max(xL, xR);
+
+            double yLeft  = Geometry2D.parabolaY(d.site, leftX,  sweepY);
+            double yRight = Geometry2D.parabolaY(d.site, rightX, sweepY);
+            if (!Double.isFinite(yLeft) || !Double.isFinite(yRight)) return false;
+
+            double dx = rightX - leftX;
+            double dy = yRight - yLeft;
+            double chord = Math.sqrt(dx * dx + dy * dy);
+
+            return chord >= MIN_DISTANCE_WORLD;
+        };
+
+        float mid = app.lerp(yMin, yMax, 0.5f);
+        mid = processing.core.PApplet.constrain(mid, yMin + EPSILON, yMax - EPSILON);
+
+        // If midpoint already gives a visible doomed arc, keep it.
+        if (wideEnough.test(mid)) return mid;
+
+        // If even yMin isn't wide enough, we can't do better.
+        if (!wideEnough.test(yMin)) return yMin + EPSILON;
+
+        // Binary search for the largest y (closest to the event) that is still wide enough.
+        float lo = yMin; // wideEnough(lo) == true
+        float hi = mid;  // wideEnough(hi) == false
+
+        for (int it = 0; it < ITERS; it++) {
+            float m = app.lerp(lo, hi, 0.5f);
+            if (wideEnough.test(m)) lo = m;
+            else hi = m;
+        }
+
+        return processing.core.PApplet.constrain(lo, yMin + EPSILON, yMax - EPSILON);
+    }
+
+    private FortuneContext.BeachArc findDoomedArcInCurrentBeachline(
+            FortuneContext fortune,
+            FortuneContext.CircleEvent.Sites sites
+    ) {
+        for (FortuneContext.BeachArc b = fortune.beachLine(); b != null; b = b.next) {
+            if (b.prev == null || b.next == null) continue;
+
+            var trip = new FortuneContext.CircleEvent.Sites(b.prev.site, b.site, b.next.site);
+            if (trip.matches(sites)) {
+                return b; // b is the disappearing arc (the middle one)
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Match the chosen circle event in the Fortune context.
+     * Advances fortunePlan until it finds a circle event matching the chosenEvent.
+     * Returns null if no match is found (indicating a serious error).
+     */
+    private FortuneContext.CircleEvent matchChosenEventInFortune() {
+        final double Y_TOLERANCE = 0.01; // Tolerance for Y coordinate matching
+        final double CENTER_TOLERANCE = 1.0; // Tolerance for center coordinate matching
+
+        while (fortunePlan.step()) {
+            if (fortunePlan.lastEvent() instanceof FortuneContext.CircleEvent candidate) {
+                // Check if this matches the chosen event
+                if (Math.abs(candidate.y() - chosenEvent.yEvent()) <= Y_TOLERANCE &&
+                    candidate.sites().matches(chosenEvent.sites())) {
+
+                    // Also verify center and radius match (within tolerance)
+                    double centerDist = Math.sqrt(
+                        Math.pow(candidate.center().x() - chosenEvent.center().x(), 2) +
+                        Math.pow(candidate.center().y() - chosenEvent.center().y(), 2)
+                    );
+
+                    if (centerDist <= CENTER_TOLERANCE) {
+                        // Log successful match with event details
+                        System.out.printf("[CircleEventZoom] Matched chosen event: y=%.2f c=(%.1f,%.1f) sites=[a=(%.1f,%.1f) b=(%.1f,%.1f) c=(%.1f,%.1f)]%n",
+                                candidate.y(),
+                                candidate.center().x(), candidate.center().y(),
+                                candidate.sites().a().x(), candidate.sites().a().y(),
+                                candidate.sites().b().x(), candidate.sites().b().y(),
+                                candidate.sites().c().x(), candidate.sites().c().y());
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        // No match found - this is a serious error
+        return null;
+    }
+
+    // ==================== CAMERA AND RENDERING HELPERS ====================
     private void applyCamera() {
         PVector screenCenter = new PVector(app.width / 2.0f, app.height / 2.0f);
         float zoom = currentZoom(); // Use centralized zoom calculation

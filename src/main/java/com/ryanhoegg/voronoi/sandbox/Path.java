@@ -19,6 +19,9 @@ public class Path {
         points.add(point);
     }
 
+    public PVector first() { return points.isEmpty() ? null : points.get(0); }
+    public PVector last()  { return points.isEmpty() ? null : points.get(points.size()-1); }
+
     public static Path rectangle(PVector origin, float width, float height) {
         Path p = new Path();
         p.points.add(origin);

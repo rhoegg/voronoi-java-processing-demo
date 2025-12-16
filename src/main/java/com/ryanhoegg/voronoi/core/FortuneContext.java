@@ -80,6 +80,10 @@ public final class FortuneContext {
         return (e != null) ? e.y() : null;
     }
 
+    public Event nextEvent() {
+        return eventQueue.peek();
+    }
+
     public List<CircleEvent> drainCircleEvents() {
         List<CircleEvent> events = Collections.unmodifiableList(List.copyOf(recentCircleEvents));
         // I'm glad this isn't multithreaded
@@ -315,10 +319,28 @@ public final class FortuneContext {
             return this.sites;
         }
 
-        public static record Sites (Point a, Point b, Point c) {
+        public record Sites (Point a, Point b, Point c) {
+            private static final double EPSILON = 0.00001;
             public boolean contains(Point p) {
                 return a.equals(p) || b.equals(p) || c.equals(p);
             }
+
+            public boolean matches(Sites other) {
+                List<Point> thisPoints = new ArrayList<>(List.of(a, b, c));
+                List<Point> otherPoints = new ArrayList<>(List.of(other.a, other.b, other.c));
+                thisPoints.sort(Comparator.comparingDouble(Point::y).thenComparingDouble(Point::x));
+                otherPoints.sort(Comparator.comparingDouble(Point::y).thenComparingDouble(Point::x));
+                for (int i = 0; i < 3; i++) {
+                    if (Math.abs(thisPoints.get(i).x() - otherPoints.get(i).x()) > EPSILON) {
+                        return false;
+                    }
+                    if (Math.abs(thisPoints.get(i).y() - otherPoints.get(i).y()) > EPSILON) {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
+
     }
 }

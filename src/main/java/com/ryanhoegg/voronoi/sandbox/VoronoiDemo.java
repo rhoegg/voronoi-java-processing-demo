@@ -1,5 +1,8 @@
 package com.ryanhoegg.voronoi.sandbox;
 
+import com.ryanhoegg.voronoi.core.ChosenCircleEvent;
+import com.ryanhoegg.voronoi.core.CircleEventSelector;
+import com.ryanhoegg.voronoi.core.CircleEventSelectorConfig;
 import com.ryanhoegg.voronoi.core.FortuneContext;
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
 import com.ryanhoegg.voronoi.core.geometry.Point;
@@ -25,6 +28,7 @@ public class VoronoiDemo extends PApplet {
 
     List<PVector> sites = new ArrayList<>();
     List<PVector> circleDemoSites = new ArrayList<>();
+    ChosenCircleEvent chosenCircleEvent; // Store the chosen event for CircleEventZoom
     Visualization visualization;
 
     // Theme selection - Change this to switch themes!
@@ -102,7 +106,7 @@ public class VoronoiDemo extends PApplet {
                 resetTiming();
                 break;
             case '3':
-                visualization = new CircleEventZoom(this, circleDemoSites, currentTheme);
+                visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
                 auto = false;
                 resetTiming();
                 break;
@@ -121,7 +125,7 @@ public class VoronoiDemo extends PApplet {
                 } else if (visualization instanceof HalfPlaneDiagram) {
                     visualization = new HalfPlaneDiagram(this, sites, currentTheme);
                 } else if (visualization instanceof CircleEventZoom) {
-                    visualization = new CircleEventZoom(this, circleDemoSites, currentTheme);
+                    visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
                 } else if (visualization instanceof FortuneSweepLine) {
                     visualization = new FortuneSweepLine(this, sites, currentTheme);
                 }
@@ -275,7 +279,43 @@ public class VoronoiDemo extends PApplet {
                 return false;
             }
         }
+
+        // NEW: Check that at least one circle event is eligible for visualization
+        // Use zoom=3.0 to match CircleEventZoom's targetZoom
+        // Compute the world center (focus) for this cluster
+        float clusterCenterX = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.x)).floatValue();
+        float clusterCenterY = cluster.stream().collect(Collectors.averagingDouble(p -> (double) p.y)).floatValue();
+
+        Point screenCenter = new Point(width / 2.0, height / 2.0);
+        Point focus = new Point(clusterCenterX, clusterCenterY);
+
+        CircleEventSelectorConfig config = CircleEventSelectorConfig.defaultConfig(3.0f, screenCenter, focus);
+        CircleEventSelector selector = new CircleEventSelector(config);
+
+        // Enable verbose logging to see rejection reasons during development
+        boolean debugClusterGeneration = false; // Set to true to debug cluster failures
+        selector.withVerboseLogging(debugClusterGeneration);
+
+        // Find first (topmost) site and require it in the chosen event
+        Point firstSite = points.stream()
+                .min(Comparator.comparingDouble(Point::y))
+                .orElse(null);
+
+        Optional<ChosenCircleEvent> chosen = selector.findEligibleEvent(points, bounds, firstSite);
+
+        if (chosen.isEmpty()) {
+            // No eligible circle event found - reject this cluster
+            if (debugClusterGeneration) {
+                System.out.println("[ClusterGen] Rejected cluster - no eligible events. Reasons:");
+                selector.getRejectionReasons().forEach(r -> System.out.println("  - " + r));
+            }
+            return false;
+        }
+
+        // Success! Store and print info about the chosen event
+        chosenCircleEvent = chosen.get();
         System.out.println("Top cluster site at " + cluster.get(0).y + " (" + cluster.get(0).y / height + ")");
+        System.out.println("  Chosen circle event: " + chosenCircleEvent);
         return true;
     }
 

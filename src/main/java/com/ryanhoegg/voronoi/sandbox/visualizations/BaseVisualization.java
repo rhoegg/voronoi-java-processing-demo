@@ -138,6 +138,36 @@ public abstract class BaseVisualization implements Visualization {
         return (sx - screenCenterX) / zoom + focusX;
     }
 
+    /**
+     * Convert world X coordinate to screen X coordinate.
+     * Uses the same transform as rendering: (worldX - focusX) * zoom + screenCenterX
+     */
+    protected float worldToScreenX(float wx) {
+        float zoom = currentZoom();
+        float screenCenterX = app.width / 2f;
+        float focusX = currentFocus().x;
+        return (wx - focusX) * zoom + screenCenterX;
+    }
+
+    /**
+     * Convert world Y coordinate to screen Y coordinate.
+     * Uses the same transform as rendering: (worldY - focusY) * zoom + screenCenterY
+     */
+    protected float worldToScreenY(float wy) {
+        float zoom = currentZoom();
+        float screenCenterY = app.height / 2f;
+        float focusY = currentFocus().y;
+        return (wy - focusY) * zoom + screenCenterY;
+    }
+
+    /**
+     * Convert world coordinates to screen coordinates.
+     * Uses the same transform as rendering.
+     */
+    protected PVector worldToScreen(PVector world) {
+        return new PVector(worldToScreenX(world.x), worldToScreenY(world.y));
+    }
+
     protected void drawParabolaForSite(PVector site, float directrixY, boolean highlight) {
         Path path = Path.parabola(site, directrixY, 0, app.width);
         currentStyle().drawParabola(app, path, highlight, site, currentZoom());
