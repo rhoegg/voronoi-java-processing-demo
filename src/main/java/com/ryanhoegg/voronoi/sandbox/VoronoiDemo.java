@@ -1,9 +1,9 @@
 package com.ryanhoegg.voronoi.sandbox;
 
 import com.ryanhoegg.voronoi.core.ChosenCircleEvent;
-import com.ryanhoegg.voronoi.core.CircleEventSelector;
-import com.ryanhoegg.voronoi.core.CircleEventSelectorConfig;
 import com.ryanhoegg.voronoi.core.FortuneContext;
+import com.ryanhoegg.voronoi.sandbox.story.CircleEventSelector;
+import com.ryanhoegg.voronoi.sandbox.story.CircleEventSelectorConfig;
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.geometry.ScreenTransform;
@@ -12,6 +12,7 @@ import com.ryanhoegg.voronoi.sandbox.visualizations.FortuneSweepLine;
 import com.ryanhoegg.voronoi.sandbox.visualizations.HalfPlaneDiagram;
 import com.ryanhoegg.voronoi.sandbox.visualizations.SingleCellHalfPlaneClip;
 import com.ryanhoegg.voronoi.sandbox.visualizations.Theme;
+import com.ryanhoegg.voronoi.sandbox.visualizations.TitleVoronoiSlide;
 import processing.core.PApplet;
 import processing.core.PVector;
 
@@ -19,7 +20,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class VoronoiDemo extends PApplet {
-    final int SITE_COUNT = 50;
+    final int SITE_COUNT = 12;
     final int WIDTH = 1280;
     final int HEIGHT = 720;
 
@@ -31,6 +32,10 @@ public class VoronoiDemo extends PApplet {
     ChosenCircleEvent chosenCircleEvent; // Store the chosen event for CircleEventZoom
     Visualization visualization;
 
+    // Track dimensions to detect resize
+    int lastWidth = WIDTH;
+    int lastHeight = HEIGHT;
+
     // Theme selection - Change this to switch themes!
     Theme currentTheme = Theme.CHRISTMAS;
 
@@ -38,6 +43,7 @@ public class VoronoiDemo extends PApplet {
     float stepInterval = 0.25f; // how often to call step in auto mode
     float accumulatedTime = 0f;
     long lastMillis;
+    boolean isFullscreen = false;
 
     public static void main(String[] args) {
         PApplet.main(VoronoiDemo.class);
@@ -72,6 +78,14 @@ public class VoronoiDemo extends PApplet {
 
     @Override
     public void draw() {
+        // Check if dimensions changed (from fullscreen toggle)
+        if (width != lastWidth || height != lastHeight) {
+            lastWidth = width;
+            lastHeight = height;
+            regenerateForNewDimensions();
+            return; // Skip this frame, regeneration will happen
+        }
+
         long now = millis();
         float dt = (now - lastMillis) / 1000f;
         lastMillis = now;
@@ -95,6 +109,11 @@ public class VoronoiDemo extends PApplet {
     public void keyPressed() {
         // note: ESC quits so don't use that one
         switch (key) {
+            case '0':
+                visualization = new TitleVoronoiSlide(this, sites, currentTheme);
+                auto = false;
+                resetTiming();
+                break;
             case '1':
                 visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
                 auto = false;
@@ -106,9 +125,13 @@ public class VoronoiDemo extends PApplet {
                 resetTiming();
                 break;
             case '3':
-                visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
-                auto = false;
-                resetTiming();
+                if (chosenCircleEvent == null) {
+                    System.out.println("ERROR: No circle event available for CircleEventZoom. Press 'r' to regenerate cluster.");
+                } else {
+                    visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
+                    auto = false;
+                    resetTiming();
+                }
                 break;
             case '4':
                 visualization = new FortuneSweepLine(this, sites, currentTheme);
@@ -120,12 +143,18 @@ public class VoronoiDemo extends PApplet {
                 currentTheme = (currentTheme == Theme.CHRISTMAS) ? Theme.STYLE_B_CLASSIC : Theme.CHRISTMAS;
                 System.out.println("Switched to theme: " + currentTheme);
                 // Recreate current visualization with new theme
-                if (visualization instanceof SingleCellHalfPlaneClip) {
+                if (visualization instanceof TitleVoronoiSlide) {
+                    visualization = new TitleVoronoiSlide(this, sites, currentTheme);
+                } else if (visualization instanceof SingleCellHalfPlaneClip) {
                     visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
                 } else if (visualization instanceof HalfPlaneDiagram) {
                     visualization = new HalfPlaneDiagram(this, sites, currentTheme);
                 } else if (visualization instanceof CircleEventZoom) {
-                    visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
+                    if (chosenCircleEvent == null) {
+                        System.out.println("ERROR: Cannot recreate CircleEventZoom - no circle event available.");
+                    } else {
+                        visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
+                    }
                 } else if (visualization instanceof FortuneSweepLine) {
                     visualization = new FortuneSweepLine(this, sites, currentTheme);
                 }
@@ -147,10 +176,92 @@ public class VoronoiDemo extends PApplet {
                 auto = false;
                 resetTiming();
                 break;
+            case 'f':
+                toggleFullscreen();
+                break;
             default:
                 System.out.println("Key pressed: " + (int) key);
         }
         visualization.keyPressed(key, keyCode);
+    }
+
+    /**
+     * Toggle fullscreen mode and regenerate sites for new dimensions.
+     */
+    private void toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+
+        // Store current dimensions before resize
+        int oldWidth = width;
+        int oldHeight = height;
+
+        // Toggle fullscreen using surface API (proper way at runtime)
+        if (surface != null) {
+            // Note: This triggers macOS native fullscreen on supported systems
+            if (isFullscreen) {
+                // Get display dimensions
+                java.awt.DisplayMode dm = java.awt.GraphicsEnvironment
+                    .getLocalGraphicsEnvironment()
+                    .getDefaultScreenDevice()
+                    .getDisplayMode();
+                surface.setSize(dm.getWidth(), dm.getHeight());
+                surface.setLocation(0, 0);
+            } else {
+                surface.setSize(WIDTH, HEIGHT);
+            }
+        }
+
+        // Wait a frame for dimensions to update, then regenerate
+        // We'll check in draw() if dimensions changed
+        System.out.println("Toggling fullscreen: " + (isFullscreen ? "ON" : "OFF"));
+    }
+
+    /**
+     * Regenerate sites and visualization when screen dimensions change.
+     */
+    private void regenerateForNewDimensions() {
+        Random r = new Random();
+
+        // Clear and regenerate sites
+        sites.clear();
+        circleDemoSites = generateNiceCluster(7, r);
+        sites.addAll(circleDemoSites);
+
+        PVector center = new PVector(width / 2, height / 2);
+        while (sites.size() < SITE_COUNT) {
+            PVector candidate = new PVector(r.nextFloat() * width, r.nextFloat() * height);
+            if (abs(center.x - candidate.x) > (centralWidth) * width / 2
+                && abs(center.y - candidate.y) > (centralHeight) * height / 2) {
+                sites.add(candidate);
+            }
+        }
+        Collections.shuffle(sites);
+
+        // Recreate current visualization with new sites
+        if (visualization instanceof TitleVoronoiSlide) {
+            visualization = new TitleVoronoiSlide(this, sites, currentTheme);
+        } else if (visualization instanceof SingleCellHalfPlaneClip) {
+            visualization = new SingleCellHalfPlaneClip(this, sites, currentTheme);
+        } else if (visualization instanceof HalfPlaneDiagram) {
+            visualization = new HalfPlaneDiagram(this, sites, currentTheme);
+        } else if (visualization instanceof CircleEventZoom) {
+            if (chosenCircleEvent != null) {
+                visualization = new CircleEventZoom(this, circleDemoSites, chosenCircleEvent, currentTheme);
+            } else {
+                // Fall back to title slide if no circle event
+                visualization = new TitleVoronoiSlide(this, sites, currentTheme);
+            }
+        } else if (visualization instanceof FortuneSweepLine) {
+            visualization = new FortuneSweepLine(this, sites, currentTheme);
+        } else {
+            // Default fallback
+            visualization = new TitleVoronoiSlide(this, sites, currentTheme);
+        }
+
+        auto = false;
+        resetTiming();
+
+        System.out.println("Screen resized to " + width + "x" + height + " - regenerated sites and visualization");
     }
 
     /**

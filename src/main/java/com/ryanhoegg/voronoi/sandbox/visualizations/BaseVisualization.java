@@ -1,16 +1,19 @@
 package com.ryanhoegg.voronoi.sandbox.visualizations;
 
 import com.ryanhoegg.voronoi.core.FortuneContext;
+import com.ryanhoegg.voronoi.core.geometry.Bounds;
 import com.ryanhoegg.voronoi.core.geometry.Geometry2D;
 import com.ryanhoegg.voronoi.core.geometry.Point;
 import com.ryanhoegg.voronoi.sandbox.Path;
 import com.ryanhoegg.voronoi.sandbox.Visualization;
+import com.ryanhoegg.voronoi.sandbox.story.RenderedBeachline;
 import com.ryanhoegg.voronoi.sandbox.visualizations.theme.ThemeStyle;
 import processing.core.PApplet;
 import processing.core.PVector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static processing.core.PConstants.CLOSE;
 
@@ -182,62 +185,45 @@ public abstract class BaseVisualization implements Visualization {
         currentStyle().drawParabola(app, path, highlight, site, currentZoom());
     }
 
+    /**
+     * Compute beachline segments using shared RenderedBeachline helper.
+     *
+     * <p><b>IMPORTANT:</b> Delegates to RenderedBeachline.computeSegments() to ensure
+     * segmentation matches what CircleEventSelector uses for measurement. This guarantees
+     * consistency between selection-time and render-time measurements.</p>
+     */
     protected List<ArcPath> computeBeachLineSegments(FortuneContext fortune, float sweepLinePosition) {
-        List<ArcPath> segments = new ArrayList<>();
+        // Delegate to shared RenderedBeachline helper for consistent segmentation
+        RenderedBeachline.Transform transform = new RenderedBeachline.Transform(
+            new Point(app.width / 2.0, app.height / 2.0),
+            new Point(currentFocus().x, currentFocus().y),
+            currentZoom()
+        );
 
-        FortuneContext.BeachArc head = fortune.beachLine();
-        if (null == head) return segments;
+        Bounds bounds = new Bounds(0, 0, app.width, app.height);
 
-        float directrix = sweepLinePosition;
+        List<RenderedBeachline.ArcSegment> coreSegments =
+            RenderedBeachline.computeSegments(fortune, sweepLinePosition, bounds, transform);
 
-        float zoom = currentZoom();
-        float worldLeft = screenToWorldX(0);
-        float worldRight = screenToWorldX(app.width);
-        float worldStep = 2f / zoom;
+        // Convert to ArcPath format for visualization
+        return coreSegments.stream()
+            .map(seg -> new ArcPath(
+                seg.arc(),
+                seg.site(),
+                pointsToPath(seg.points())
+            ))
+            .collect(Collectors.toList());
+    }
 
-        FortuneContext.BeachArc currentArc = null;
-        Path currentSegment = null;
-
-        for (float x = worldLeft; x < worldRight; x += worldStep) {
-            // lowest position (highest y) arc at this x
-            FortuneContext.BeachArc best = null;
-            double bestY = Double.NEGATIVE_INFINITY;
-
-            for (FortuneContext.BeachArc arc = head; arc != null; arc = arc.next) {
-                double y = Geometry2D.parabolaY(arc.site, x, directrix);
-                if (Double.isNaN(y)) continue;
-
-                if (y > bestY) {
-                    bestY = y;
-                    best = arc;
-                }
-            }
-
-            if (null == best) {
-                // no arcs here, end the the open segment
-                if (null != currentArc && null != currentSegment) {
-                    segments.add(new ArcPath(currentArc.site, currentSegment));
-                    currentArc = null;
-                    currentSegment = null;
-                }
-                continue;
-            }
-            if (best != currentArc) { // new segment
-                if (null != currentArc && null != currentSegment) {
-                    segments.add(new ArcPath(currentArc.site, currentSegment));
-                }
-                currentArc = best;
-                currentSegment = new Path();
-            }
-
-            currentSegment.add(new PVector(x, (float) bestY));
+    /**
+     * Convert List<Point> to Path for visualization.
+     */
+    private Path pointsToPath(List<Point> points) {
+        Path path = new Path();
+        for (Point p : points) {
+            path.add(new PVector((float) p.x(), (float) p.y()));
         }
-        // flush last segment
-        if (currentArc != null && currentSegment != null) {
-            segments.add(new ArcPath(currentArc.site, currentSegment));
-        }
-
-        return segments;
+        return path;
     }
 
 

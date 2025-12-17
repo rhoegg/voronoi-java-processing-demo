@@ -1,4 +1,4 @@
-package com.ryanhoegg.voronoi.core;
+package com.ryanhoegg.voronoi.sandbox.story;
 
 import com.ryanhoegg.voronoi.core.geometry.Point;
 
@@ -43,5 +43,15 @@ public record CircleEventSelectorConfig(
                 focus,   // world focus point
                 100      // maxCircleEventsToScan - scan more events
         );
+    }
+
+    /**
+     * Compute Y_GUARD: minimum vertical offset from y3 to start WAKE search.
+     * Guards against y3+epsilon degeneracy by letting neighbor arcs "develop".
+     *
+     * @return max(2.0, 2.0/zoom) world units
+     */
+    public double yGuard() {
+        return Math.max(2.0, 2.0 / zoom);
     }
 }

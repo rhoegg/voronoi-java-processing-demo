@@ -2,6 +2,8 @@ package com.ryanhoegg.voronoi.core;
 
 import com.ryanhoegg.voronoi.core.geometry.Bounds;
 import com.ryanhoegg.voronoi.core.geometry.Point;
+import com.ryanhoegg.voronoi.sandbox.story.CircleEventSelector;
+import com.ryanhoegg.voronoi.sandbox.story.CircleEventSelectorConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;

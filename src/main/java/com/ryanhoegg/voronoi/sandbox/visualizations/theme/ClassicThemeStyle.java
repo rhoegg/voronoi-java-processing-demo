@@ -302,7 +302,81 @@ public class ClassicThemeStyle implements ThemeStyle {
 
     @Override
     public void drawBeachArc(PApplet app, Path path, PVector site, boolean highlight, float zoom, float alpha) {
+        app.pushStyle();
 
+        float a = PApplet.constrain(alpha, 0f, 1f);
+        if (a <= 0f) {
+            app.popStyle();
+            return;
+        }
+
+        float safeZoom = (Float.isFinite(zoom) && zoom > 0f) ? zoom : 1f;
+
+        int baseColor = beachLineColorForSite(app, site.x, site.y);
+        int r = (baseColor >> 16) & 0xFF;
+        int g = (baseColor >> 8) & 0xFF;
+        int b = baseColor & 0xFF;
+
+        float normalBaseWeight = 1.1f;
+        float highlightedBaseWeight = 2.4f;
+        float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
+        float weight = Math.max(0.1f, baseWeight / safeZoom);
+
+        app.noFill();
+        app.strokeCap(PApplet.ROUND);
+        app.strokeJoin(PApplet.ROUND);
+
+        if (highlight) {
+            float glowWeight = Math.max(0.1f, weight + (2.0f / safeZoom));
+            app.stroke(app.color(r, g, b, 60f * a));
+            app.strokeWeight(glowWeight);
+            drawCurveVertexPath(app, path);
+        }
+
+        float mainAlpha = (highlight ? 215f : 150f) * a;
+        app.stroke(app.color(r, g, b, mainAlpha));
+        app.strokeWeight(weight);
+        drawCurveVertexPath(app, path);
+
+        if (highlight) {
+            float coreWeight = Math.max(0.1f, weight * 0.55f);
+            int coreR = (int) PApplet.lerp(r, 255, 0.25f);
+            int coreG = (int) PApplet.lerp(g, 255, 0.25f);
+            int coreB = (int) PApplet.lerp(b, 255, 0.25f);
+            app.stroke(app.color(coreR, coreG, coreB, 90f * a));
+            app.strokeWeight(coreWeight);
+            drawCurveVertexPath(app, path);
+        }
+
+        app.popStyle();
+    }
+
+    @Override
+    public void drawBeachLineGapFill(PApplet app, PVector from, PVector to, PVector site, boolean highlight, float zoom) {
+        app.pushStyle();
+        app.strokeCap(PApplet.ROUND);
+        app.strokeJoin(PApplet.ROUND);
+
+        // Use the same color as the beach line arc it connects to
+        int baseColor = beachLineColorForSite(app, site.x, site.y);
+        int r = (baseColor >> 16) & 0xFF;
+        int g = (baseColor >> 8) & 0xFF;
+        int b = baseColor & 0xFF;
+
+        // Match the beach line stroke weight (based on highlight state)
+        float safeZoom = (Float.isFinite(zoom) && zoom > 0f) ? zoom : 1f;
+        float normalBaseWeight = 1.3f;
+        float highlightedBaseWeight = 2.6f;
+        float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
+        float w = Math.max(0.1f, baseWeight / safeZoom);
+
+        // Use same alpha as beach line
+        float mainAlpha = highlight ? 210f : 150f;
+        app.stroke(app.color(r, g, b, mainAlpha));
+        app.strokeWeight(w);
+        app.line(from.x, from.y, to.x, to.y);
+
+        app.popStyle();
     }
 
     @Override
@@ -332,5 +406,47 @@ public class ClassicThemeStyle implements ThemeStyle {
     @Override
     public void drawWitnessDistanceHelpers(PApplet app, PVector witness, PVector site, float directrixY, float alpha) {
 
+    }
+
+    // ==================== VORONOI DIAGRAM (JTS) ====================
+
+    @Override
+    public int voronoiEdgeColor(PApplet app) {
+        // More prominent edges with higher alpha
+        return app.color(160, 160, 190, 200);
+    }
+
+    @Override
+    public float voronoiEdgeWeight() {
+        return 2.5f;
+    }
+
+    @Override
+    public int voronoiVertexColor(PApplet app) {
+        // More prominent vertices with stronger color
+        return app.color(100, 120, 200, 240);
+    }
+
+    @Override
+    public float voronoiVertexSize() {
+        return 6.0f;
+    }
+
+    @Override
+    public int titleTextColor(PApplet app) {
+        // Classic dark blue text
+        return app.color(60, 80, 120, 255);
+    }
+
+    @Override
+    public int titleOutlineColor(PApplet app) {
+        // Light outline for contrast
+        return app.color(240, 240, 245, 200);
+    }
+
+    @Override
+    public float titleTextSize(PApplet app) {
+        // Large, prominent title
+        return Math.min(app.width, app.height) * 0.15f;
     }
 }

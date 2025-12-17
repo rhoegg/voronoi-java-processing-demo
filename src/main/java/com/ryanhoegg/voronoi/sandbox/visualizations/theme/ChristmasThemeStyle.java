@@ -24,8 +24,8 @@ public class ChristmasThemeStyle implements ThemeStyle {
     private static final int BG_BOTTOM_B = 32;
 
     // ==================== SITE CONSTANTS ====================
-    private static final float SITE_SIZE = 6.5f;
-    private static final float HIGHLIGHTED_SITE_SIZE = 12f;
+    private static final float SITE_SIZE = 10.0f;
+    private static final float HIGHLIGHTED_SITE_SIZE = 18f;
 
     // Ornament palette
     private static final int[][] ORNAMENT_PALETTE = {
@@ -46,8 +46,8 @@ public class ChristmasThemeStyle implements ThemeStyle {
     private static final int SWEEP_CORE_B = 150;
     private static final int SWEEP_CORE_ALPHA = 240;
 
-    private static final float SWEEP_GLOW_WEIGHT = 7.0f;
-    private static final float SWEEP_CORE_WEIGHT = 4.0f;
+    private static final float SWEEP_GLOW_WEIGHT = 10.0f;
+    private static final float SWEEP_CORE_WEIGHT = 6.0f;
 
     // ==================== PULSE CONSTANTS ====================
     private static final float PULSE_PERIOD = 3.0f; // seconds
@@ -263,10 +263,10 @@ public class ChristmasThemeStyle implements ThemeStyle {
         int g = (baseColor >> 8) & 0xFF;
         int b = baseColor & 0xFF;
 
-        // Target screen-space thicknesses
-        float normalBaseWeight = 0.8f;
-        float highlightedBaseWeight = 6.6f; // Ensures ~2.2px at zoom=3.0
-        float targetScreenThickness = 2.2f;
+        // Target screen-space thicknesses (increased for big screen)
+        float normalBaseWeight = 1.5f;
+        float highlightedBaseWeight = 9.0f; // Ensures ~3.0px at zoom=3.0
+        float targetScreenThickness = 3.5f;
 
         // Compute zoom-compensated weight
         float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
@@ -367,8 +367,8 @@ public class ChristmasThemeStyle implements ThemeStyle {
         int g = (baseColor >> 8) & 0xFF;
         int b = baseColor & 0xFF;
 
-        float normalBaseWeight = 1.3f;
-        float highlightedBaseWeight = 2.6f;
+        float normalBaseWeight = 2.0f;
+        float highlightedBaseWeight = 3.5f;
 
         float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
         float w = Math.max(0.1f, baseWeight / safeZoom);
@@ -402,6 +402,34 @@ public class ChristmasThemeStyle implements ThemeStyle {
             app.strokeWeight(shineW);
             drawCurveVertexPath(app, path);
         }
+
+        app.popStyle();
+    }
+
+    @Override
+    public void drawBeachLineGapFill(PApplet app, PVector from, PVector to, PVector site, boolean highlight, float zoom) {
+        app.pushStyle();
+        app.strokeCap(PApplet.ROUND);
+        app.strokeJoin(PApplet.ROUND);
+
+        // Use the same color as the beach line arc it connects to
+        int baseColor = beachLineColorForSite(app, site.x, site.y);
+        int r = (baseColor >> 16) & 0xFF;
+        int g = (baseColor >> 8) & 0xFF;
+        int b = baseColor & 0xFF;
+
+        // Match the beach line stroke weight (non-highlighted)
+        float safeZoom = (Float.isFinite(zoom) && zoom > 0f) ? zoom : 1f;
+        float normalBaseWeight = 2.0f;
+        float highlightedBaseWeight = 3.5f;
+        float baseWeight = highlight ? highlightedBaseWeight : normalBaseWeight;
+        float w = Math.max(0.1f, baseWeight / safeZoom);
+
+        // Use same alpha as non-highlighted beach line
+        float mainAlpha = highlight ? 210f : 150f;
+        app.stroke(app.color(r, g, b, mainAlpha));
+        app.strokeWeight(w);
+        app.line(from.x, from.y, to.x, to.y);
 
         app.popStyle();
     }
@@ -530,5 +558,47 @@ public class ChristmasThemeStyle implements ThemeStyle {
         app.line(tick3A.x, tick3A.y, tick3B.x, tick3B.y);
         app.line(tick4A.x, tick4A.y, tick4B.x, tick4B.y);
         app.popStyle();
+    }
+
+    // ==================== VORONOI DIAGRAM (JTS) ====================
+
+    @Override
+    public int voronoiEdgeColor(PApplet app) {
+        // More prominent icy blue-white edges
+        return app.color(140, 200, 230, 220);
+    }
+
+    @Override
+    public float voronoiEdgeWeight() {
+        return 3.5f;
+    }
+
+    @Override
+    public int voronoiVertexColor(PApplet app) {
+        // More prominent golden vertices like ornaments
+        return app.color(235, 190, 90, 255);
+    }
+
+    @Override
+    public float voronoiVertexSize() {
+        return 8.0f;
+    }
+
+    @Override
+    public int titleTextColor(PApplet app) {
+        // Warm golden text
+        return app.color(245, 220, 150, 255);
+    }
+
+    @Override
+    public int titleOutlineColor(PApplet app) {
+        // Dark shadow for contrast
+        return app.color(10, 25, 35, 180);
+    }
+
+    @Override
+    public float titleTextSize(PApplet app) {
+        // Large, prominent title
+        return Math.min(app.width, app.height) * 0.15f;
     }
 }

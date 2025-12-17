@@ -109,8 +109,77 @@ public interface ThemeStyle {
 
     void drawBeachArc(PApplet app, Path path, PVector site, boolean highlight, float zoom, float alpha);
 
+    /**
+     * Draw a small connecting line to fill visual gaps between beach line segments.
+     * Uses the same styling as the beach line arc it connects to.
+     *
+     * @param app PApplet for drawing
+     * @param from Start point of the gap fill
+     * @param to End point of the gap fill
+     * @param site The site that owns the arc (for color determination)
+     * @param highlight Whether this arc is highlighted
+     * @param zoom Current zoom level for stroke weight compensation
+     */
+    void drawBeachLineGapFill(PApplet app, PVector from, PVector to, PVector site, boolean highlight, float zoom);
+
     // ==================== WITNESS ====================
     void drawWitness(PApplet app, PVector pos, float alpha);
     void drawWitnessSegments(PApplet app, PVector witness, PVector site, float directrixY, float alpha);
     void drawWitnessDistanceHelpers(PApplet app, PVector witness, PVector site, float directrixY, float alpha);
+
+    // ==================== VORONOI DIAGRAM (JTS) ====================
+
+    /**
+     * Get the color for Voronoi diagram edges.
+     *
+     * @param app PApplet for color creation
+     * @return Color int (ARGB)
+     */
+    int voronoiEdgeColor(PApplet app);
+
+    /**
+     * Get the stroke weight for Voronoi diagram edges.
+     *
+     * @return Stroke weight in pixels
+     */
+    float voronoiEdgeWeight();
+
+    /**
+     * Get the color for Voronoi diagram vertices.
+     *
+     * @param app PApplet for color creation
+     * @return Color int (ARGB)
+     */
+    int voronoiVertexColor(PApplet app);
+
+    /**
+     * Get the size for Voronoi diagram vertices.
+     *
+     * @return Vertex size in pixels
+     */
+    float voronoiVertexSize();
+
+    /**
+     * Get the color for title text.
+     *
+     * @param app PApplet for color creation
+     * @return Color int (ARGB)
+     */
+    int titleTextColor(PApplet app);
+
+    /**
+     * Get the color for title text outline/shadow.
+     *
+     * @param app PApplet for color creation
+     * @return Color int (ARGB)
+     */
+    int titleOutlineColor(PApplet app);
+
+    /**
+     * Get the text size for title text.
+     *
+     * @param app PApplet for size calculation
+     * @return Text size in points
+     */
+    float titleTextSize(PApplet app);
 }

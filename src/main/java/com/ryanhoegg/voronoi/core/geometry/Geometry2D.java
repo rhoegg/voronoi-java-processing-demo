@@ -59,8 +59,195 @@ public final class Geometry2D {
         return new Point(ux, uy);
     }
 
+    /**
+     * Diagnostic result for parabola intersection analysis.
+     * Contains both roots, contract verification, and convergence metrics.
+     */
+    public static class IntersectionDiagnostic {
+        public final double chosenX;
+        public final double root1;
+        public final double root2;
+        public final boolean contractValid; // |yA - yB| < 1e-6 at chosenX
+        public final double contractError;  // |yA - yB| at chosenX
+        public final double root1_yA;
+        public final double root1_yB;
+        public final double root2_yA;
+        public final double root2_yB;
+
+        public IntersectionDiagnostic(double chosenX, double root1, double root2,
+                                     boolean contractValid, double contractError,
+                                     double root1_yA, double root1_yB,
+                                     double root2_yA, double root2_yB) {
+            this.chosenX = chosenX;
+            this.root1 = root1;
+            this.root2 = root2;
+            this.contractValid = contractValid;
+            this.contractError = contractError;
+            this.root1_yA = root1_yA;
+            this.root1_yB = root1_yB;
+            this.root2_yA = root2_yA;
+            this.root2_yB = root2_yB;
+        }
+
+        public void printDiagnostic(String label) {
+            System.out.printf("[IntersectionDiagnostic] %s%n", label);
+            System.out.printf("  Chosen X: %.6f%n", chosenX);
+            System.out.printf("  Root 1: %.6f → yA=%.6f, yB=%.6f, |yA-yB|=%.9f%n",
+                root1, root1_yA, root1_yB, Math.abs(root1_yA - root1_yB));
+            System.out.printf("  Root 2: %.6f → yA=%.6f, yB=%.6f, |yA-yB|=%.9f%n",
+                root2, root2_yA, root2_yB, Math.abs(root2_yA - root2_yB));
+            System.out.printf("  Contract valid at chosen X: %s (error=%.9f)%n",
+                contractValid, contractError);
+        }
+    }
+
+    /**
+     * Diagnostic version of parabolaIntersectionX that returns detailed analysis.
+     * Use this to verify that the chosen root actually satisfies the intersection contract.
+     */
+    public static IntersectionDiagnostic parabolaIntersectionXDiagnostic(
+            Point focus1, Point focus2, double directrixY) {
+
+        // Call the main method to get the chosen X
+        double chosenX = parabolaIntersectionX(focus1, focus2, directrixY);
+
+        // Verify contract at chosen X
+        double yA_chosen = parabolaY(focus1, chosenX, directrixY);
+        double yB_chosen = parabolaY(focus2, chosenX, directrixY);
+        double errorChosen = Math.abs(yA_chosen - yB_chosen);
+        boolean contractValid = errorChosen < 1e-6;
+
+        // Now compute BOTH roots explicitly (duplicating logic from main method)
+        Point f1 = focus1, f2 = focus2;
+        if (focus1.x() > focus2.x()) {
+            f1 = focus2;
+            f2 = focus1;
+        }
+
+        final double fx1 = f1.x(), fy1 = f1.y();
+        final double fx2 = f2.x(), fy2 = f2.y();
+        final double d = directrixY;
+
+        double A1 = 1.0 / (2.0 * (fy1 - d));
+        double B1 = -fx1 / (fy1 - d);
+        double C1 = (fx1*fx1 + fy1*fy1 - d*d) / (2.0 * (fy1 - d));
+
+        double A2 = 1.0 / (2.0 * (fy2 - d));
+        double B2 = -fx2 / (fy2 - d);
+        double C2 = (fx2*fx2 + fy2*fy2 - d*d) / (2.0 * (fy2 - d));
+
+        double a = (A1 - A2);
+        double b = (B1 - B2);
+        double c = (C1 - C2);
+
+        double root1 = Double.NaN, root2 = Double.NaN;
+        if (Math.abs(a) >= 1e-12) {
+            double disc = b*b - 4.0*a*c;
+            if (disc >= 0.0) {
+                double sqrt = Math.sqrt(disc);
+                root1 = (-b - sqrt) / (2.0*a);
+                root2 = (-b + sqrt) / (2.0*a);
+            }
+        }
+
+        // Verify both roots
+        double r1_yA = Double.isFinite(root1) ? parabolaY(focus1, root1, directrixY) : Double.NaN;
+        double r1_yB = Double.isFinite(root1) ? parabolaY(focus2, root1, directrixY) : Double.NaN;
+        double r2_yA = Double.isFinite(root2) ? parabolaY(focus1, root2, directrixY) : Double.NaN;
+        double r2_yB = Double.isFinite(root2) ? parabolaY(focus2, root2, directrixY) : Double.NaN;
+
+        return new IntersectionDiagnostic(chosenX, root1, root2,
+            contractValid, errorChosen, r1_yA, r1_yB, r2_yA, r2_yB);
+    }
+
+    /**
+     * Compute parabola intersection X coordinate near a circle event.
+     * Uses the root CLOSEST to the circle center X to ensure correct convergence behavior.
+     *
+     * CRITICAL: Near circle events, the standard leftToRightBoundary heuristic chooses
+     * the WRONG root (the outer intersection far from center). This method chooses the
+     * root that minimizes |rootX - circleCenterX|, ensuring breakpoints converge toward
+     * the circle center as sweepY approaches the event.
+     *
+     * @param focus1 First parabola focus
+     * @param focus2 Second parabola focus
+     * @param directrixY The sweep line / directrix Y coordinate
+     * @param circleCenterX The X coordinate of the circle center (convergence target)
+     * @return The intersection X coordinate closest to circleCenterX
+     */
+    public static double parabolaIntersectionXNearCircleEvent(
+            Point focus1, Point focus2, double directrixY, double circleCenterX) {
+
+        // Ensure consistent ordering
+        if (focus1.x() > focus2.x()) {
+            Point tmp = focus1;
+            focus1 = focus2;
+            focus2 = tmp;
+        }
+
+        final double fx1 = focus1.x(), fy1 = focus1.y();
+        final double fx2 = focus2.x(), fy2 = focus2.y();
+        final double d = directrixY;
+
+        // Handle degenerate cases
+        final double EPS = 1e-9;
+        double den1 = (fy1 - d);
+        double den2 = (fy2 - d);
+
+        if (Math.abs(den1) < EPS && Math.abs(den2) < EPS) {
+            return 0.5 * (fx1 + fx2);
+        }
+        if (Math.abs(den1) < EPS) return fx1;
+        if (Math.abs(den2) < EPS) return fx2;
+
+        // Solve quadratic equation for intersection
+        double A1 = 1.0 / (2.0 * den1);
+        double B1 = -fx1 / den1;
+        double C1 = (fx1*fx1 + fy1*fy1 - d*d) / (2.0 * den1);
+
+        double A2 = 1.0 / (2.0 * den2);
+        double B2 = -fx2 / den2;
+        double C2 = (fx2*fx2 + fy2*fy2 - d*d) / (2.0 * den2);
+
+        double a = (A1 - A2);
+        double b = (B1 - B2);
+        double c = (C1 - C2);
+
+        // Linear case
+        if (Math.abs(a) < 1e-12) {
+            if (Math.abs(b) < 1e-12) {
+                return 0.5 * (fx1 + fx2);
+            }
+            return -c / b;
+        }
+
+        // Quadratic case - compute both roots
+        double disc = b*b - 4.0*a*c;
+        if (disc < 0.0) {
+            return 0.5 * (fx1 + fx2);
+        }
+
+        double sqrt = Math.sqrt(disc);
+        double r1 = (-b - sqrt) / (2.0*a);
+        double r2 = (-b + sqrt) / (2.0*a);
+
+        // Check finiteness
+        boolean r1ok = Double.isFinite(r1);
+        boolean r2ok = Double.isFinite(r2);
+        if (!r1ok && !r2ok) return 0.5 * (fx1 + fx2);
+        if (r1ok && !r2ok) return r1;
+        if (!r1ok && r2ok) return r2;
+
+        // CRITICAL: Choose the root CLOSEST to circle center X
+        // This ensures breakpoints converge toward the circle center as sweep → event
+        double dist1 = Math.abs(r1 - circleCenterX);
+        double dist2 = Math.abs(r2 - circleCenterX);
+
+        return (dist1 < dist2) ? r1 : r2;
+    }
+
     public static double parabolaIntersectionX(Point focus1, Point focus2, double directrixY) {
-        // Ensure consistent “left arc then right arc” behavior
+        // Ensure consistent "left arc then right arc" behavior
         if (focus1.x() > focus2.x()) {
             Point tmp = focus1;
             focus1 = focus2;
